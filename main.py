@@ -25,13 +25,19 @@ def parse_args():
     parser.add_argument(
         "--aggregate-locations",
         action="store_true",
-        help="Train per product by summing all locations",
+        help="Train a single series by summing all locations",
+    )
+    parser.add_argument(
+        "--locations",
+        nargs="*",
+        default=None,
+        help="Optional list of location names to train",
     )
     parser.add_argument(
         "--products",
         nargs="*",
         default=None,
-        help="Optional list of product names to train",
+        help="Deprecated alias of --locations (kept for compatibility).",
     )
     return parser.parse_args()
 
@@ -43,8 +49,10 @@ def run_pipeline(args):
     raw_df = load_inventory_files(args.data_dir)
     clean_df = clean_inventory_data(raw_df)
 
-    if args.products:
-        clean_df = clean_df[clean_df["product"].isin(args.products)].copy()
+    # Compatibilidad: si llega --products, usarlo como alias de --locations.
+    selected_locations = args.locations if args.locations else args.products
+    if selected_locations:
+        clean_df = clean_df[clean_df["location"].isin(selected_locations)].copy()
 
     clean_df = aggregate_if_needed(clean_df, per_location=not args.aggregate_locations)
     stock_df = build_stock_dataset(clean_df)
