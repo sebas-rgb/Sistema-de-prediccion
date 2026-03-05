@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Inventory Forecasting (TensorFlow + Keras)
 
 This project trains LSTM neural networks to forecast inventory stock from daily Excel files.
@@ -64,3 +65,7 @@ Generated under `outputs/`:
 - `train.py`: training/evaluation per product-location
 - `predict.py`: recursive future forecasting and plots
 - `main.py`: full pipeline entrypoint
+=======
+# Sistema-de-prediccion
+Time-series inventory forecasting platform built with Python, TensorFlow/Keras and Streamlit. It processes Excel inventory movement matrices, reconstructs stock history and predicts future stock levels using LSTM models.
+>>>>>>> 78078895267fb129c47fc541da7432ee6fa2114d
