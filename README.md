@@ -1,3 +1,24 @@
-En esta version Cambiamos la funcionalidad de prediccion, escogiendo mejor el inventario total, para luego, poder predecir un inventario total futuro en una sede especifica, teniendo como base las muestras, igual, aun hacen falta bastantes pruebas las cuales nos permitan conocer si la prediccion y graduacion automatica de pesos entre nodos se encuentre correctamente. 
+Proyecto de forecasting de inventario migrado a PyTorch.
 
-Esta falta de pruebas es debido al poco dataset real q posee para la aplicacion, la version 1.3, buscarav tener ya un mayor margen de dataset el cual permita una prediccion mas precisa.
+Cambios principales:
+- La fecha de cada dia se sigue extrayendo exclusivamente desde el nombre del archivo Excel.
+- Se conserva la lectura de multiples archivos `.xlsx` y `.xls`.
+- Se mantiene la logica basada en la fila `Totales:` para separar `total_stock` y `net_movement`.
+- El entrenamiento y la prediccion ahora se ejecutan con PyTorch.
+- `window_size`, `forecast_days`, `epochs` y `batch_size` ya no se piden manualmente: se calculan con `auto_configure_training_params(...)`.
+
+Ejecucion CLI:
+```bash
+python main.py --data-dir data --output-dir outputs
+```
+
+Interfaz Streamlit:
+```bash
+streamlit run Upload.py
+```
+
+Salidas:
+- `outputs/historical_stock.csv`
+- `outputs/metrics.csv`
+- `outputs/forecast.csv`
+- `outputs/plots/*.png`
