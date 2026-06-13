@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import numpy as np
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -14,7 +15,18 @@ import joblib
 
 HORIZONTE = 30
 
-conn = sqlite3.connect("inventario.db")
+# Rutas organizadas
+BASE_DIR = os.path.dirname(__file__)
+DB_DIR = os.path.join(BASE_DIR, "db")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+RESULTS_DIR = os.path.join(BASE_DIR, "results")
+os.makedirs(DB_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DB_DIR, "inventario.db")
+
+conn = sqlite3.connect(DB_PATH)
 
 inventario = pd.read_sql("""
 SELECT *
@@ -161,10 +173,8 @@ print(
     )
 )
 
-joblib.dump(
-    modelo,
-    "modelo_agotamiento.pkl"
-)
+model_path = os.path.join(MODELS_DIR, "modelo_agotamiento.pkl")
+joblib.dump(modelo, model_path)
 
 # ----------------------------------
 # Importancia de variables
@@ -188,7 +198,7 @@ print(
 # Obtener último stock conocido
 # ----------------------------------
 
-conn = sqlite3.connect("inventario.db")
+conn = sqlite3.connect(DB_PATH)
 
 ultimo_stock = pd.read_sql("""
 SELECT i.codigo,
@@ -339,27 +349,27 @@ riesgo_bajo = productos_actuales[
 # ----------------------------------
 
 productos_actuales.to_csv(
-    "riesgo_productos.csv",
+    os.path.join(RESULTS_DIR, "riesgo_productos.csv"),
     index=False
 )
 
 productos_actuales.head(50).to_csv(
-    "top50_riesgo.csv",
+    os.path.join(RESULTS_DIR, "top50_riesgo.csv"),
     index=False
 )
 
 alto_riesgo.to_csv(
-    "alto_riesgo.csv",
+    os.path.join(RESULTS_DIR, "alto_riesgo.csv"),
     index=False
 )
 
 riesgo_medio.to_csv(
-    "riesgo_medio.csv",
+    os.path.join(RESULTS_DIR, "riesgo_medio.csv"),
     index=False
 )
 
 riesgo_bajo.to_csv(
-    "riesgo_bajo.csv",
+    os.path.join(RESULTS_DIR, "riesgo_bajo.csv"),
     index=False
 )
 
@@ -368,17 +378,16 @@ riesgo_bajo.to_csv(
 # ----------------------------------
 
 print("\n=========================")
-print("Modelo guardado")
-print("modelo_agotamiento.pkl")
+print("Modelo guardado en:", model_path)
 print("=========================")
 
 print("\nArchivos generados:")
 
-print("riesgo_productos.csv")
-print("top50_riesgo.csv")
-print("alto_riesgo.csv")
-print("riesgo_medio.csv")
-print("riesgo_bajo.csv")
+print(os.path.join(RESULTS_DIR, "riesgo_productos.csv"))
+print(os.path.join(RESULTS_DIR, "top50_riesgo.csv"))
+print(os.path.join(RESULTS_DIR, "alto_riesgo.csv"))
+print(os.path.join(RESULTS_DIR, "riesgo_medio.csv"))
+print(os.path.join(RESULTS_DIR, "riesgo_bajo.csv"))
 
 print("\nResumen probabilidades:")
 

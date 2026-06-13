@@ -5,15 +5,25 @@ import os
 
 from datetime import datetime, timedelta
 
+# Directorio base del script y rutas organizadas
+BASE_DIR = os.path.dirname(__file__)
+DB_DIR = os.path.join(BASE_DIR, "db")
+os.makedirs(DB_DIR, exist_ok=True)
+
+# Archivos de configuración y datos (rutas absolutas dentro de la carpeta simulation)
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+PRODUCTOS_SAMPLE_PATH = os.path.join(BASE_DIR, "productos_simulacion_sample.json")
+DB_PATH = os.path.join(DB_DIR, "inventario.db")
+
 # =====================================
 # CONFIG
 # =====================================
 
-with open("config.json", "r", encoding="utf8") as f:
+with open(CONFIG_PATH, "r", encoding="utf8") as f:
     config = json.load(f)
 
 with open(
-    "productos_simulacion_sample.json",
+    PRODUCTOS_SAMPLE_PATH,
     "r",
     encoding="utf8"
 ) as f:
@@ -27,12 +37,10 @@ random.seed(
 # REINICIAR DB
 # =====================================
 
-if os.path.exists("inventario.db"):
-    os.remove("inventario.db")
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
 
-conn = sqlite3.connect(
-    "inventario.db"
-)
+conn = sqlite3.connect(DB_PATH)
 
 cur = conn.cursor()
 

@@ -1,12 +1,18 @@
 import sqlite3
 import os
 
-# Nombre del archivo de la base de datos
-db_name = "inventario.db"
+# Rutas organizadas: base de datos en carpeta 'db'
+BASE_DIR = os.path.dirname(__file__)
+DB_DIR = os.path.join(BASE_DIR, "db")
+os.makedirs(DB_DIR, exist_ok=True)
+
+# Nombre del archivo de la base de datos (ruta absoluta)
+db_name = os.path.join(DB_DIR, "inventario.db")
+
 
 def crear_base_de_datos():
     try:
-        # Esto crea el archivo si no existe y se conecta
+        # Asegurar que el directorio exista y conectarse (crea el archivo si no existe)
         conexion = sqlite3.connect(db_name)
         cursor = conexion.cursor()
 
@@ -55,7 +61,7 @@ def crear_base_de_datos():
         cursor.executescript(script_sql)
         conexion.commit()
         
-        print(f"¡Éxito! Base de datos '{db_name}' creada en: {os.getcwd()}")
+        print(f"¡Éxito! Base de datos creada en: {db_name}")
 
     except sqlite3.Error as e:
         print(f"Error al crear la base de datos: {e}")

@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import joblib
+import os
 
 from sklearn.metrics import (
     accuracy_score,
@@ -10,21 +11,28 @@ from sklearn.metrics import (
 
 HORIZONTE = 30
 
+# Rutas organizadas
+BASE_DIR = os.path.dirname(__file__)
+DB_DIR = os.path.join(BASE_DIR, "db")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+RESULTS_DIR = os.path.join(BASE_DIR, "results")
+os.makedirs(DB_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
 # ----------------------------------
 # Cargar modelo ya entrenado
 # ----------------------------------
 
-modelo = joblib.load(
-    "modelo_agotamiento.pkl"
-)
+model_path = os.path.join(MODELS_DIR, "modelo_agotamiento.pkl")
+modelo = joblib.load(model_path)
 
 # ----------------------------------
 # Leer nueva simulación
 # ----------------------------------
 
-conn = sqlite3.connect(
-    "inventario.db"
-)
+db_path = os.path.join(DB_DIR, "inventario.db")
+conn = sqlite3.connect(db_path)
 
 inventario = pd.read_sql("""
 SELECT *
@@ -172,14 +180,13 @@ print(
 )
 
 dataset.to_csv(
-    "validacion_externa.csv",
+    os.path.join(RESULTS_DIR, "validacion_externa.csv"),
     index=False
 )
 
 print(
     "\nArchivo generado:"
 )
-
 print(
-    "validacion_externa.csv"
+    os.path.join(RESULTS_DIR, "validacion_externa.csv")
 )
