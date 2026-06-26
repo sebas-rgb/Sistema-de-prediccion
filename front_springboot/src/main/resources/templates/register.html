@@ -1,0 +1,353 @@
+                type="password" th:field="*{confirmPassword}"
+                minlength="6"
+                type="password" th:field="*{password}"
+                type="email" th:field="*{email}"
+          <option value="NO APLICA">No Aplica</option>
+                required th:field="*{cargo}"
+          <option value="PASTO">PASTO</option>
+                required th:field="*{punto}"
+          <option value="PASTO">PASTO</option>
+
+                required th:field="*{ciudad}"
+                type="tel" th:field="*{telefono}"
+                type="text" th:field="*{cedula}"
+                type="text" th:field="*{nombre}"
+        <div th:if="${error != null}" class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <p th:text="${error}"></p>
+        </div>
+<!DOCTYPE html>
+<html lang="es">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro - Centro de Tickets</title>
+  <!-- CSS compilado de Tailwind + animaciones personalizadas -->
+  <link th:href="@{/main.css}" rel="stylesheet"/>
+  <!-- Font Awesome para los íconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="min-h-screen flex flex-col md:flex-row">
+  <!-- PANEL IZQUIERDO → FORMULARIO -->
+  <div class="flex-1 flex items-center justify-center p-6 md:p-10">
+    <form
+            th:action="@{/register}" method="post"
+            th:object="${registerRequest}"
+            th:object="${registerRequest}"
+            onsubmit="return handleSubmit(event)"
+            class="bg-white backdrop-blur-md border border-sky-200 rounded-2xl p-8 w-full max-w-md space-y-4 shadow-xl hover:scale-[1.01] transition-transform"
+    >
+      <div class="text-center mb-6">
+        <i class="fas fa-flask text-4xl text-sky-500 mb-2 animate-bounce"></i>
+                type="text" name="nombre"
+        <p class="text-sm text-gray-600">Registro Centro de soporte TI - Austral Lens</p>
+        <!-- Mostrar errores si existen -->
+        <div th:if="${error != null}" class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <p th:text="${error}"></p>
+        </div>
+        <div th:if="${errores != null and !errores.isEmpty()}" class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <ul>
+            <li th:each="error : ${errores}" th:text="${error}"></li>
+          </ul>
+        </div>
+      </div>
+
+                type="text" name="cedula"
+        <label class="block text-sky-700 font-semibold mb-1">
+          Nombre completo: <span class="text-red-500">*</span>
+        </label>
+        <input
+                type="text" th:field="*{nombre}"
+                placeholder="Ingrese su nombre completo"
+                pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ ]{3,110}"
+                required
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+                type="tel" name="telefono"
+        <label class="block text-sky-700 font-semibold mb-1">
+          Número de identificación (C.C): <span class="text-red-500">*</span>
+        </label>
+        <input
+                type="text" th:field="*{cedula}"
+                placeholder="Ingrese su cédula"
+                required
+                pattern="[0-9]{6,12}"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+                required name="ciudad"
+        <label class="block text-sky-700 font-semibold mb-1">
+          Número de teléfono: <span class="text-red-500">*</span>
+        </label>
+        <input
+                type="tel" th:field="*{telefono}"
+                placeholder="Ej: 31312345678"
+                required
+                pattern="[0-9]{1,15}"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="block text-sky-700 font-semibold mb-1">
+          Ciudad en la que trabaja: <span class="text-red-500">*</span>
+        </label>
+        <select
+                required th:field="*{ciudad}"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white"
+        >
+          <option value="">Seleccione una ciudad</option>
+          <option value="BARRANQUILLA">BARRANQUILLA</option>
+          <option value="BOGOTA">BOGOTA</option>
+          <option value="BUCARAMANGA">BUCARAMANGA</option>
+          <option value="CALI">CALI</option>
+          <option value="MANIZALES">MANIZALES</option>
+          <option value="MEDELLIN">MEDELLIN</option>
+          <option value="NEIVA">NEIVA</option>
+          <option value="PEREIRA">PEREIRA</option>
+          <option value="RIONEGRO">RIONEGRO</option>
+          <option value="SOACHA">SOACHA</option>
+          <option value="TUNJA">TUNJA</option>
+          <option value="ARMENIA">ARMENIA</option>
+          <option value="IBAGUE">IBAGUE</option>
+                required name="punto"
+          <option value="SINCELEJO">SINCELEJO</option>
+          <option value="TULUA">TULUA</option>
+          <option value="VILLAVICENCIO">VILLAVICENCIO</option>
+          <option value="YOPAL">YOPAL</option>
+          <option value="SANTA MARTA">SANTA MARTA</option>
+          <option value="CARTAGENA">CARTAGENA</option>
+          <option value="PASTO">PASTO</option>
+
+        </select>
+
+      </div>
+
+      <div>
+        <label class="block text-sky-700 font-semibold mb-1">
+          Área/Punto de venta: <span class="text-red-500">*</span>
+        </label>
+        <select
+                required th:field="*{punto}"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white"
+        >
+          <option value="">Seleccione un punto</option>
+          <option value="DISTRIBUIDORES">DISTRIBUIDORES AUTORIZADOS</option>
+          <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+          <option value="BARRANQUILLA">BARRANQUILLA</option>
+          <option value="BODEGA">BODEGA</option>
+          <option value="BUCARAMANGA">BUCARAMANGA</option>
+          <option value="CALI">CALI</option>
+          <option value="CENTRO">CENTRO</option>
+          <option value="CHAPINERO">CHAPINERO</option>
+          <option value="CHIA">CHIA</option>
+          <option value="CUCUTA">CUCUTA</option>
+                required name="cargo"
+          <option value="MANIZALES">MANIZALES</option>
+          <option value="MEDELLIN">MEDELLIN</option>
+          <option value="NEIVA">NEIVA</option>
+          <option value="No aplica">No Aplica</option>
+          <option value="PEREIRA">PEREIRA</option>
+          <option value="PRINCIPAL">PRINCIPAL</option>
+          <option value="RIONEGRO">RIONEGRO</option>
+          <option value="TUNJA">TUNJA</option>
+          <option value="PASTO">PASTO</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sky-700 font-semibold mb-1">
+          Cargo: <span class="text-red-500">*</span>
+        </label>
+        <select
+                required th:field="*{cargo}"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white"
+        >
+          <option value="">Seleccione un cargo</option>
+          <option value="NO APLICA">No Aplica</option>
+          <option value="ADMINISTRADOR/A">ADMINISTRADOR/A</option>
+          <option value="ANALISTA DE CARTERA">ANALISTA DE CARTERA</option>
+          <option value="ASESOR JURIDICO">ASESOR JURIDICO</option>
+          <option value="ASISTENTE DE AUDITORIA">ASISTENTE DE AUDITORIA</option>
+          <option value="ASISTENTE DE CONTABILIDAD">ASISTENTE DE CONTABILIDAD</option>
+          <option value="ASISTENTE DE GERENCIA">ASISTENTE DE GERENCIA</option>
+          <option value="ASISTENTE DE NOMINA">ASISTENTE DE NOMINA</option>
+          <option value="ASISTENTE DE TALENTO HUMANO">ASISTENTE DE TALENTO HUMANO</option>
+          <option value="AUDITOR INTERNO">AUDITOR INTERNO</option>
+          <option value="AUXILIAR DE ARCHIVO">AUXILIAR DE ARCHIVO</option>
+          <option value="AUXILIAR DE BODEGA">AUXILIAR DE BODEGA</option>
+          <option value="AUXILIAR DE IMAGEN CORPORATIVA">AUXILIAR DE IMAGEN CORPORATIVA</option>
+          <option value="AUXILIAR DE LABORATORIO">AUXILIAR DE LABORATORIO</option>
+          <option value="AUXILIAR DE LABORATORIO - ANTIRREFLEJO">AUXILIAR DE LABORATORIO - ANTIRREFLEJO</option>
+          <option value="AUXILIAR DE LABORATORIO - CALL CENTER">AUXILIAR DE LABORATORIO - CALL CENTER</option>
+          <option value="AUXILIAR DE LABORATORIO - CONTROL DE CALIDAD">AUXILIAR DE LABORATORIO - CONTROL DE CALIDAD</option>
+          <option value="AUXILIAR DE LABORATORIO - ENCINTADO">AUXILIAR DE LABORATORIO - ENCINTADO</option>
+          <option value="AUXILIAR DE LABORATORIO - TALLA">AUXILIAR DE LABORATORIO - TALLA</option>
+          <option value="AUXILIAR DE PUNTO DE VENTA">AUXILIAR DE PUNTO DE VENTA</option>
+          <option value="AUXILIAR DE SERVICIOS GENERALES">AUXILIAR DE SERVICIOS GENERALES</option>
+          <option value="AUXILIAR DE SERVICIOS VARIOS">AUXILIAR DE SERVICIOS VARIOS</option>
+          <option value="BISELADOR/A">BISELADOR/A</option>
+          <option value="CAJERO">CAJERO</option>
+          <option value="COORDINADOR DE ARCHIVO Y SUMINISTROS">COORDINADOR DE ARCHIVO Y SUMINISTROS</option>
+          <option value="COORDINADOR DE BISEL">COORDINADOR DE BISEL</option>
+          <option value="COORDINADOR DE BODEGA">COORDINADOR DE BODEGA</option>
+          <option value="COORDINADOR DE LABORATORIO">COORDINADOR DE LABORATORIO</option>
+          <option value="COORDINADORA CONTABLE">COORDINADORA CONTABLE</option>
+          <option value="DIRECTOR CIENTIFICO">DIRECTOR CIENTIFICO</option>
+          <option value="DIRECTOR COMERCIAL">DIRECTOR COMERCIAL</option>
+          <option value="DIRECTORA CONTABLE Y TESORERIA">DIRECTORA CONTABLE Y TESORERIA</option>
+          <option value="DIRECTORA DE GESTION DE MARCA">DIRECTORA DE GESTION DE MARCA</option>
+          <option value="DIRECTORA DE HSEQ">DIRECTORA DE HSEQ</option>
+          <option value="DIRECTORA DE IMAGEN COORPORATIVA">DIRECTORA DE IMAGEN COORPORATIVA</option>
+                type="email" name="email"
+          <option value="EJECUTIVO COMERCIAL">EJECUTIVO COMERCIAL</option>
+          <option value="GERENTE ADMINISTRATIVO Y FINANCIERO">GERENTE ADMINISTRATIVO Y FINANCIERO</option>
+          <option value="GERENTE COMERCIAL">GERENTE COMERCIAL</option>
+          <option value="JEFE DE BODEGA">JEFE DE BODEGA</option>
+          <option value="JEFE DE LABORATORIO">JEFE DE LABORATORIO</option>
+          <option value="LIDER DE SISTEMAS">LIDER DE SISTEMAS</option>
+          <option value="MENSAJERO">MENSAJERO</option>
+          <option value="PRESIDENTE">PRESIDENTE</option>
+          <option value="APRENDIZ">APRENDIZ</option>
+        </select>
+      </div>
+
+                type="password" name="password"
+        <label class="block text-sky-700 font-semibold mb-1">
+          Email: <span class="text-red-500">*</span>
+        <input
+                type="email" th:field="*{email}"
+                placeholder="ejemplo@correo.com"
+                required
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="block text-sky-700 font-semibold mb-1">
+                type="password" name="confirmPassword"
+        </label>
+        <input
+                type="password" th:field="*{password}"
+                placeholder="Ingrese su contraseña"
+                required
+                minlength="6"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="block text-sky-700 font-semibold mb-1">
+          Confirmar contraseña: <span class="text-red-500">*</span>
+        </label>
+        <input
+                id="confirmPassword"
+                type="password" th:field="*{confirmPassword}"
+                placeholder="Repita su contraseña"
+                required
+                minlength="6"
+                minlength="6"
+                class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+        />
+      </div>
+
+      <label class="flex items-center space-x-2 text-sky-700">
+        <input
+                type="checkbox"
+                onclick="togglePasswordVisibility()"
+                class="accent-sky-500 cursor-pointer"
+        />
+        <span>Mostrar contraseña</span>
+      </label>
+      <label class="flex items-start space-x-2 text-sky-700 text-sm">
+        <input
+                type="checkbox"
+                id="habeasdata"
+                required
+                class="accent-sky-500 cursor-pointer mt-1"
+        />
+
+        <span>
+        Autorizo el tratamiento de mis datos personales de acuerdo con la política
+        de privacidad y la legislación de Habeas Data vigente en Colombia.
+    </span>
+      </label>
+
+      <div class="space-y-3">
+        <button
+                type="submit"
+                id="LoginBt"
+                class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded-lg transition-all hover:scale-105 active:scale-95"
+        >
+          Registrarse
+        </button>
+
+        <button
+                type="button"
+                onclick="window.location.href='/login'"
+                class="w-full bg-white hover:bg-sky-50 text-sky-600 border-2 border-sky-400 font-semibold py-2 rounded-lg transition-all hover:scale-105 active:scale-95"
+        >
+          Ya tengo cuenta
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PANEL DERECHO → LOGO Y DECORACIÓN -->
+  <div class="hidden md:flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-sky-400 to-sky-600 text-white p-8">
+    <div class="w-72 h-72 bg-white/20 rounded-lg flex items-center justify-center mb-8 backdrop-blur-sm p-4">
+      <img src="/images/logo.png" alt="Logo Laboratorio" class="w-full h-full object-contain">
+    </div>
+
+    <div class="flex justify-center space-x-8 mb-8">
+      <i class="fas fa-laptop-code text-6xl opacity-90 animate-float"></i>
+      <i class="fas fa-server text-6xl opacity-90 animate-float" style="animation-delay: 0.3s;"></i>
+      <i class="fas fa-network-wired text-6xl opacity-90 animate-float" style="animation-delay: 0.6s;"></i>
+    </div>
+
+    <h1 class="text-3xl font-bold mt-8 text-center">¿Necesitas ayuda y soporte?</h1>
+    <p class="text-sm mt-2 text-center opacity-90">Regístrate para solicitar tu soporte</p>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    window.togglePasswordVisibility = function () {
+      const password = document.getElementById("password");
+      const confirm = document.getElementById("confirmPassword");
+      const type = password.type === "password" ? "text" : "password";
+      password.type = type;
+      confirm.type = type;
+    }
+
+    const habeasCheckbox = document.getElementById("habeasdata");
+    const loginBtn = document.getElementById("LoginBt");
+    loginBtn.disabled = true;
+
+    habeasCheckbox.addEventListener("change", function () {
+      loginBtn.disabled = !this.checked;
+    });
+
+    window.handleSubmit = function (event) {
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+
+      if (!habeasCheckbox.checked) {
+        alert("Debes autorizar el tratamiento de datos personales para continuar.");
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        alert("Las contraseñas no coinciden");
+        return false;
+      }
+
+      // Aquí puedes agregar más validaciones del lado cliente si es necesario
+      return true; // Permite el envío del formulario
+    }
+  });
+</script>
+
+</body>
+</html>

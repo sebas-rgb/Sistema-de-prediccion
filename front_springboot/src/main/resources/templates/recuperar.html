@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar contraseña - Centro de Tickets</title>
+    <link th:href="@{/main.css}" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        body {
+            background-image: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><path d="M30 0 L60 30 L30 60 L0 30 Z" fill="%2387ceeb" opacity="0.1"/></svg>');
+            background-size: 60px 60px;
+        }
+    </style>
+</head>
+
+<body class="bg-sky-100">
+
+<div class="min-h-screen flex flex-col lg:flex-row">
+
+    <!-- PANEL FORMULARIO -->
+    <div class="flex flex-1 items-center justify-center px-6 py-10 lg:px-12">
+
+        <form
+                th:action="@{/recover}" method="post"
+                class="w-full max-w-md bg-white border border-sky-200 rounded-2xl shadow-xl p-8 space-y-6"
+        >
+
+            <!-- Header -->
+            <div class="text-center">
+                <i class="fas fa-key text-4xl text-sky-500 mb-3"></i>
+                <h2 class="text-2xl font-bold text-sky-700">Recuperar contraseña</h2>
+                <p class="text-sm text-gray-600 mt-1">
+                    Ingresa tu correo para restablecer acceso al sistema
+                </p>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label class="block text-sky-700 font-semibold mb-1">
+                    Email <span class="text-red-500">*</span>
+                </label>
+                <input
+                        type="email"
+                        name="email"
+                        required
+                        placeholder="ejemplo@correo.com"
+                        class="w-full px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"
+                />
+            </div>
+
+            <!-- Botón -->
+            <button
+                    type="submit"
+                    class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2.5 rounded-lg transition-all hover:scale-[1.02] active:scale-95"
+            >
+                Enviar enlace de recuperación
+            </button>
+
+            <div th:if="${message}"
+                 class="bg-green-100 text-green-700 p-3 rounded-lg text-sm text-center">
+                <span th:text="${message}"></span>
+            </div>
+
+            <div th:if="${error}"
+                 class="bg-red-100 text-red-700 p-3 rounded-lg text-sm text-center">
+                <span th:text="${error}"></span>
+            </div>
+
+            <!-- Volver login -->
+            <p class="text-center text-sm text-gray-600">
+                <a href="/" class="text-sky-600 font-semibold hover:underline">
+                        Regresar al inicio de sesión
+                </a>
+            </p>
+
+        </form>
+    </div>
+
+
+    <!-- PANEL DERECHO DECORATIVO -->
+    <div class="hidden lg:flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-sky-400 to-sky-600 text-white p-10">
+
+        <div class="w-64 h-64 bg-white/20 rounded-xl flex items-center justify-center mb-10 backdrop-blur-md p-6">
+            <img src="/images/logo.png" alt="Logo Laboratorio" class="w-full h-full object-contain">
+        </div>
+
+        <div class="flex space-x-10 mb-8">
+            <i class="fas fa-laptop-code text-5xl animate-float"></i>
+            <i class="fas fa-server text-5xl animate-float" style="animation-delay: .3s;"></i>
+            <i class="fas fa-network-wired text-5xl animate-float" style="animation-delay: .6s;"></i>
+        </div>
+
+        <h1 class="text-3xl font-bold text-center">
+            Centro de soporte TI
+        </h1>
+
+        <p class="text-sm mt-3 text-center opacity-90 max-w-md">
+            Recupera el acceso a tu cuenta para continuar gestionando
+            tickets y solicitudes de soporte técnico.
+        </p>
+    </div>
+
+</div>
+
+</body>
+</html>

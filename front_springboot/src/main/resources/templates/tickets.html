@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Ticket | Austral Lens</title>
+    <link th:href="@{/main.css}" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        :root {
+            --al-blue:        #0077c2;
+            --al-blue-light:  #0096d6;
+            --al-blue-dark:   #004b96;
+            --al-blue-xdark:  #002f6c;
+            --al-blue-xpale:  #e8f4fd;
+            --al-border:      #c3dff5;
+            --al-ink:         #0f172a;
+            --al-muted:       #64748b;
+            --al-line:        #dbeafe;
+            --al-soft:        #f6fbff;
+            --al-surface:     #ffffff;
+            --radius-sm:      6px;
+            --radius-md:      10px;
+            --radius-lg:      16px;
+            --radius-xl:      24px;
+            --shadow-sm:      0 1px 3px rgba(15,23,42,.07), 0 1px 2px rgba(15,23,42,.05);
+            --shadow-md:      0 4px 16px rgba(15,23,42,.09), 0 2px 6px rgba(15,23,42,.06);
+            --shadow-lg:      0 12px 40px rgba(15,23,42,.12), 0 4px 12px rgba(15,23,42,.07);
+            --shadow-xl:      0 24px 64px rgba(15,23,42,.15), 0 8px 20px rgba(15,23,42,.08);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #eef5fc;
+            background-image:
+                radial-gradient(ellipse 900px 600px at 10% 0%, rgba(0,119,194,.13) 0%, transparent 70%),
+                radial-gradient(ellipse 700px 500px at 90% 100%, rgba(0,150,214,.09) 0%, transparent 70%);
+            background-attachment: fixed;
+            color: var(--al-ink);
+            min-height: 100vh;
+        }
+
+        /* ─── Animations ──────────────────────────────────── */
+        @keyframes fadeInUp   { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes slideDown  { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse-dot  { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+
+        .animate-fade-in  { animation: fadeInUp  .4s cubic-bezier(.22,.68,0,1.2) both; }
+        .animate-slide-in { animation: slideDown .45s cubic-bezier(.22,.68,0,1.2) both; }
+
+        /* ─── Navbar ──────────────────────────────────────── */
+        .al-nav {
+            background: linear-gradient(120deg, var(--al-blue-xdark) 0%, var(--al-blue-dark) 40%, var(--al-blue) 75%, var(--al-blue-light) 100%);
+            box-shadow: 0 4px 24px rgba(0,47,108,.35), 0 1px 0 rgba(255,255,255,.08) inset;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(12px);
+        }
+        .al-nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,.1);
+            color: #fff;
+            padding: .45rem .9rem;
+            font-size: .82rem;
+            font-weight: 600;
+            transition: background .18s, border-color .18s, transform .15s;
+        }
+        .al-nav-link:hover {
+            background: rgba(255,255,255,.2);
+            border-color: rgba(255,255,255,.38);
+            transform: translateY(-1px);
+        }
+        .al-nav-logout {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            background: rgba(255,255,255,.95);
+            color: var(--al-blue-dark);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: .45rem .9rem;
+            font-size: .82rem;
+            font-weight: 700;
+            transition: background .18s, transform .15s, box-shadow .18s;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        }
+        .al-nav-logout:hover {
+            background: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0,0,0,.18);
+        }
+
+        /* ─── Page header ────────────────────────────────── */
+        .page-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            color: var(--al-blue-dark);
+            font-size: .72rem;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            background: rgba(0,75,150,.08);
+            border: 1px solid rgba(0,75,150,.14);
+            padding: .25rem .65rem;
+            border-radius: 999px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            color: var(--al-blue-dark);
+            background: white;
+            border: 1.5px solid var(--al-border);
+            padding: .5rem 1.1rem;
+            border-radius: var(--radius-md);
+            font-size: .85rem;
+            font-weight: 700;
+            box-shadow: var(--shadow-sm);
+            transition: all .18s;
+        }
+        .back-btn:hover {
+            background: var(--al-blue-xpale);
+            border-color: var(--al-blue);
+            color: var(--al-blue-dark);
+            transform: translateX(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .back-btn i { transition: transform .18s; }
+        .back-btn:hover i { transform: translateX(-3px); }
+
+        /* ─── Ticket shell ───────────────────────────────── */
+        .ticket-shell {
+            border: 1px solid rgba(195,223,245,.8);
+            border-radius: var(--radius-xl);
+            background: var(--al-surface);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+        }
+
+        /* ─── Hero ───────────────────────────────────────── */
+        .ticket-hero {
+            position: relative;
+            background: linear-gradient(135deg,
+                var(--al-blue-xdark) 0%,
+                var(--al-blue-dark)  35%,
+                var(--al-blue)       70%,
+                var(--al-blue-light) 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+        .ticket-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,.07) 0%, transparent 55%),
+                radial-gradient(circle at 10% 80%, rgba(0,0,0,.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .ticket-hero::after {
+            content: "";
+            position: absolute;
+            right: -5rem;
+            bottom: -6rem;
+            width: 22rem;
+            height: 22rem;
+            border: 2.5rem solid rgba(255,255,255,.06);
+            border-radius: 999px;
+            pointer-events: none;
+        }
+        .ticket-hero-deco {
+            position: absolute;
+            top: -3rem;
+            right: 20%;
+            width: 12rem;
+            height: 12rem;
+            border: 1.5rem solid rgba(255,255,255,.04);
+            border-radius: 999px;
+            pointer-events: none;
+        }
+        .ticket-hero-content { position: relative; z-index: 1; }
+        .hero-subtitle { color: rgba(255,255,255,.72); }
+
+        .ticket-id-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            border: 1px solid rgba(255,255,255,.28);
+            border-radius: 999px;
+            background: rgba(255,255,255,.14);
+            padding: .35rem .85rem;
+            font-size: .75rem;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            backdrop-filter: blur(8px);
+        }
+        .ticket-id-badge i { font-size: .7rem; opacity: .85; }
+
+        /* ─── Status chips ───────────────────────────────── */
+        .ticket-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            min-height: 2.1rem;
+            border-radius: 999px;
+            font-size: .75rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: .35rem 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,.12);
+        }
+        .chip-open    { background: #dcfce7; color: #14532d; border: 1.5px solid #86efac; }
+        .chip-progress{ background: #fef9c3; color: #713f12; border: 1.5px solid #fde047; }
+        .chip-closed  { background: #fee2e2; color: #7f1d1d; border: 1.5px solid #fca5a5; }
+        .chip-default { background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; }
+        .chip-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: currentColor;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        /* ─── Meta cards (hero) ──────────────────────────── */
+        .ticket-meta-card {
+            border: 1px solid rgba(255,255,255,.18);
+            border-radius: var(--radius-md);
+            background: rgba(255,255,255,.1);
+            padding: .9rem 1rem;
+            backdrop-filter: blur(12px);
+            transition: background .2s;
+        }
+        .ticket-meta-card:hover { background: rgba(255,255,255,.16); }
+        .ticket-meta-label {
+            color: rgba(255,255,255,.65);
+            font-size: .65rem;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-bottom: .3rem;
+        }
+        .ticket-meta-value {
+            font-size: .92rem;
+            font-weight: 700;
+            color: rgba(255,255,255,.97);
+        }
+
+        /* ─── Content panels ─────────────────────────────── */
+        .ticket-panel {
+            border: 1px solid var(--al-line);
+            border-radius: var(--radius-lg);
+            background: var(--al-surface);
+            box-shadow: var(--shadow-md);
+            transition: box-shadow .2s;
+        }
+        .ticket-panel:hover { box-shadow: var(--shadow-lg); }
+
+        .ticket-panel-header {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            padding-bottom: 1rem;
+            border-bottom: 1.5px solid var(--al-line);
+            margin-bottom: 1.1rem;
+        }
+        .ticket-icon {
+            display: inline-flex;
+            width: 2.4rem;
+            height: 2.4rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: var(--al-blue);
+            flex-shrink: 0;
+            font-size: .85rem;
+            box-shadow: 0 2px 6px rgba(0,119,194,.15);
+        }
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--al-ink);
+            line-height: 1.2;
+        }
+        .panel-subtitle {
+            font-size: .72rem;
+            font-weight: 600;
+            color: var(--al-muted);
+            margin-top: .15rem;
+        }
+
+        /* ─── Description box ────────────────────────────── */
+        .desc-box {
+            background: var(--al-soft);
+            border: 1px solid rgba(0,119,194,.12);
+            border-left: 3px solid var(--al-blue);
+            border-radius: var(--radius-md);
+            padding: 1.1rem 1.25rem;
+        }
+
+        /* ─── Contact data rows ──────────────────────────── */
+        .contact-row {
+            padding: .6rem 0;
+            border-bottom: 1px dashed var(--al-line);
+        }
+        .contact-row:last-child { border-bottom: none; }
+        .contact-label {
+            font-size: .67rem;
+            font-weight: 800;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+            color: var(--al-muted);
+            margin-bottom: .2rem;
+        }
+        .contact-value {
+            font-size: .9rem;
+            font-weight: 700;
+            color: var(--al-ink);
+            word-break: break-word;
+        }
+
+        /* ─── Section divider ────────────────────────────── */
+        .ticket-section {
+            border-top: 1.5px solid var(--al-line);
+            padding-top: 1.75rem;
+            margin-top: 1.75rem;
+        }
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--al-ink);
+            margin-bottom: 1.1rem;
+        }
+
+        /* ─── Attachments ────────────────────────────────── */
+        .attachment-card {
+            border: 1.5px solid var(--al-line);
+            border-radius: var(--radius-md);
+            background: #fff;
+            overflow: hidden;
+            transition: border-color .18s, box-shadow .18s, transform .18s;
+            box-shadow: var(--shadow-sm);
+        }
+        .attachment-card:hover {
+            border-color: var(--al-blue);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        /* ─── Timeline / Chat ────────────────────────────── */
+        .chat-scroll {
+            max-height: 580px;
+            overflow-y: auto;
+            padding-right: .5rem;
+            scroll-behavior: smooth;
+        }
+        .chat-scroll::-webkit-scrollbar { width: 5px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: var(--al-border); border-radius: 999px; }
+        .chat-scroll::-webkit-scrollbar-thumb:hover { background: var(--al-blue); }
+
+        .timeline-card {
+            border: 1px solid var(--al-line);
+            border-radius: var(--radius-md);
+            background: #fff;
+            box-shadow: var(--shadow-sm);
+            transition: box-shadow .18s, transform .18s;
+            overflow: hidden;
+        }
+        .timeline-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .timeline-card-user   { border-left: 3px solid var(--al-blue); }
+        .timeline-card-admin  { border-left: 3px solid #f59e0b; }
+
+        .avatar {
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .85rem;
+            flex-shrink: 0;
+        }
+        .avatar-user  { background: linear-gradient(135deg,#dbeafe,#bfdbfe); color: var(--al-blue); }
+        .avatar-admin { background: linear-gradient(135deg,#fef3c7,#fde68a); color: #92400e; }
+
+        .comment-sender { font-weight: 800; font-size: .92rem; color: var(--al-ink); }
+        .comment-date   { font-size: .72rem; color: var(--al-muted); margin-top: .05rem; }
+        .comment-body   { font-size: .9rem; color: #334155; line-height: 1.65; white-space: pre-wrap; }
+
+        .files-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            font-size: .72rem;
+            font-weight: 700;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: .2rem .6rem;
+            border-radius: 999px;
+        }
+
+        /* ─── Reply form ─────────────────────────────────── */
+        .reply-card {
+            border: 1.5px solid var(--al-border);
+            border-radius: var(--radius-lg);
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            box-shadow: var(--shadow-md);
+        }
+        .form-label {
+            display: block;
+            font-size: .82rem;
+            font-weight: 700;
+            color: var(--al-blue-dark);
+            margin-bottom: .45rem;
+        }
+        .form-textarea {
+            width: 100%;
+            padding: .85rem 1rem;
+            border: 1.5px solid var(--al-border);
+            border-radius: var(--radius-md);
+            font-size: .9rem;
+            color: var(--al-ink);
+            background: #fff;
+            resize: none;
+            transition: border-color .18s, box-shadow .18s;
+            outline: none;
+            line-height: 1.6;
+        }
+        .form-textarea:focus {
+            border-color: var(--al-blue);
+            box-shadow: 0 0 0 3px rgba(0,119,194,.12);
+        }
+        .form-file {
+            width: 100%;
+            padding: .75rem 1rem;
+            border: 1.5px dashed var(--al-border);
+            border-radius: var(--radius-md);
+            background: var(--al-soft);
+            font-size: .85rem;
+            cursor: pointer;
+            transition: border-color .18s, background .18s;
+        }
+        .form-file:hover { border-color: var(--al-blue); background: var(--al-blue-xpale); }
+
+        /* ─── Buttons ────────────────────────────────────── */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            padding: .7rem 1.6rem;
+            font-size: .88rem;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, var(--al-blue-dark), var(--al-blue), var(--al-blue-light));
+            background-size: 200% 100%;
+            background-position: 100% 0;
+            border: none;
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 16px rgba(0,119,194,.32), 0 1px 0 rgba(255,255,255,.15) inset;
+            cursor: pointer;
+            transition: background-position .3s, transform .15s, box-shadow .2s;
+        }
+        .btn-primary:hover {
+            background-position: 0 0;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,119,194,.4);
+        }
+        .btn-primary:active { transform: translateY(0); }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            padding: .7rem 1.4rem;
+            font-size: .88rem;
+            font-weight: 600;
+            color: #475569;
+            background: #fff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: background .15s, border-color .15s, transform .15s;
+        }
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }
+
+        /* ─── Closed ticket banner ───────────────────────── */
+        .closed-banner {
+            background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+            border: 1.5px solid #fecaca;
+            border-left: 4px solid #ef4444;
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .closed-banner i   { font-size: 2rem; color: #ef4444; margin-bottom: .75rem; display: block; }
+        .closed-banner h3  { font-size: 1rem; font-weight: 800; color: #7f1d1d; margin-bottom: .4rem; }
+        .closed-banner p   { font-size: .85rem; color: #6b7280; }
+
+        /* ─── Footer ─────────────────────────────────────── */
+        .al-footer {
+            background: linear-gradient(120deg, var(--al-blue-xdark), var(--al-blue-dark));
+            color: #fff;
+            margin-top: auto;
+        }
+        .al-footer-copy {
+            background: rgba(0,0,0,.2);
+            text-align: center;
+            padding: .9rem;
+            font-size: .72rem;
+            color: rgba(255,255,255,.5);
+        }
+        .al-footer-label { font-size: .82rem; font-weight: 800; margin-bottom: .5rem; color: rgba(255,255,255,.9); }
+        .al-footer-text  { font-size: .8rem; color: rgba(255,255,255,.55); line-height: 1.7; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<!-- Navbar -->
+<nav class="al-nav px-5 md:px-8 py-3 flex items-center justify-between">
+    <img src="/images/logo.png" class="h-11 md:h-14 object-contain brightness-0 invert">
+
+    <div class="flex items-center gap-2 md:gap-3">
+        <a href="/perfil" class="al-nav-link">
+            <i class="fas fa-user text-xs"></i>
+            Mi perfil
+        </a>
+        <a href="/logout" class="al-nav-logout">
+            <i class="fas fa-sign-out-alt text-xs"></i>
+            Cerrar sesión
+        </a>
+    </div>
+</nav>
+
+<!-- Alertas -->
+<div th:replace="~{fragments/_alertas :: alertas}"></div>
+
+<header class="px-4 pt-7 pb-4 animate-slide-in">
+    <div class="max-w-6xl mx-auto flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div class="flex flex-col gap-2">
+            <span class="page-kicker">
+                <i class="fas fa-headset fa-xs"></i>
+                Centro de soporte TI
+            </span>
+            <h1 class="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
+                Detalle del Ticket
+            </h1>
+        </div>
+        <a href="/menu" class="back-btn self-start md:self-auto">
+            <i class="fas fa-arrow-left"></i>
+            Volver al menú
+        </a>
+    </div>
+</header>
+
+<main class="max-w-6xl mx-auto w-full px-4 pb-14 flex-grow">
+
+    <div class="ticket-shell animate-fade-in">
+
+        <!-- ── Hero del ticket ─────────────────────── -->
+        <section class="ticket-hero p-6 md:p-10">
+            <div class="ticket-hero-deco"></div>
+            <div class="ticket-hero-content">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                    <div class="max-w-3xl">
+                        <span class="ticket-id-badge">
+                            <i class="fas fa-ticket-alt"></i>
+                            Ticket #<span th:text="${ticket.id}"></span>
+                        </span>
+                        <h2 class="text-2xl md:text-3xl font-black tracking-tight mt-4 leading-snug"
+                            th:text="${ticket.tema}">Tema del ticket</h2>
+                        <p class="hero-subtitle mt-2 text-sm max-w-2xl leading-relaxed">
+                            Seguimiento completo de tu solicitud y conversación con el equipo de soporte.
+                        </p>
+                    </div>
+
+                    <div class="flex lg:justify-end items-start">
+                        <span class="ticket-chip"
+                              th:classappend="${ticket.estado != null and ticket.estado.toUpperCase() == 'ABIERTO'} ? 'chip-open' :
+                                             (${ticket.estado != null and ticket.estado.toUpperCase() == 'EN PROGRESO'} ? 'chip-progress' :
+                                             (${ticket.estado != null and ticket.estado.toUpperCase() == 'CERRADO'} ? 'chip-closed' : 'chip-default'))">
+                            <span class="chip-dot"></span>
+                            <span th:text="${ticket.estado}"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7">
+                    <div class="ticket-meta-card">
+                        <p class="ticket-meta-label"><i class="fas fa-clock fa-xs mr-1"></i>Creado</p>
+                        <p class="ticket-meta-value"
+                           th:text="${#temporals.format(ticket.marcaTemporal,'dd/MM/yyyy HH:mm')}"></p>
+                    </div>
+                    <div class="ticket-meta-card">
+                        <p class="ticket-meta-label"><i class="fas fa-tag fa-xs mr-1"></i>Tipo de consulta</p>
+                        <p class="ticket-meta-value" th:text="${ticket.tipoDePregunta}"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Cuerpo ──────────────────────────────── -->
+        <div class="p-5 md:p-8">
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                <!-- Descripción -->
+                <section class="ticket-panel p-5 md:p-6 lg:col-span-2">
+                    <div class="ticket-panel-header">
+                        <span class="ticket-icon"><i class="fas fa-align-left"></i></span>
+                        <div>
+                            <p class="panel-title">Tu consulta</p>
+                            <p class="panel-subtitle">Descripción que enviaste</p>
+                        </div>
+                    </div>
+                    <div class="desc-box">
+                        <p class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap"
+                           th:text="${ticket.description}"></p>
+                    </div>
+                </section>
+
+                <!-- Datos de contacto -->
+                <aside class="ticket-panel p-5 md:p-6">
+                    <div class="ticket-panel-header">
+                        <span class="ticket-icon"><i class="fas fa-user-circle"></i></span>
+                        <div>
+                            <p class="panel-title">Tus datos</p>
+                            <p class="panel-subtitle">Información de contacto registrada</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="contact-row">
+                            <p class="contact-label">Nombre</p>
+                            <p class="contact-value" th:text="${ticket.nombreActual}"></p>
+                        </div>
+                        <div class="contact-row">
+                            <p class="contact-label">Correo</p>
+                            <p class="contact-value" th:text="${ticket.emailActual}"></p>
+                        </div>
+                        <div class="contact-row">
+                            <p class="contact-label">Teléfono</p>
+                            <p class="contact-value" th:text="${ticket.telefonoActual}"></p>
+                        </div>
+                        <div class="contact-row">
+                            <p class="contact-label">Ciudad</p>
+                            <p class="contact-value" th:text="${ticket.ciudadActual}"></p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <!-- ── Archivos adjuntos ───────────────── -->
+            <div th:if="${medias != null and !medias.isEmpty()}" class="ticket-section">
+                <h3 class="section-heading">
+                    <span class="ticket-icon"><i class="fas fa-paperclip"></i></span>
+                    Archivos adjuntos
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div th:each="media : ${medias}" class="attachment-card">
+
+                        <!-- Imagen -->
+                        <div th:if="${media.mediaPath.toLowerCase().endsWith('.jpg')
+                                  or media.mediaPath.toLowerCase().endsWith('.jpeg')
+                                  or media.mediaPath.toLowerCase().endsWith('.png')
+                                  or media.mediaPath.toLowerCase().endsWith('.gif')
+                                  or media.mediaPath.toLowerCase().endsWith('.webp')}">
+                            <img th:src="@{'/uploads/' + ${media.mediaPath}}"
+                                 alt="Imagen del ticket"
+                                 class="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition"
+                                 onclick="abrirImagenGrande(this.src)">
+                            <p class="text-xs text-slate-500 px-3 py-2 truncate flex items-center gap-1">
+                                <i class="fas fa-image text-sky-500"></i>
+                                <span th:text="${media.mediaPath}"></span>
+                            </p>
+                        </div>
+
+                        <!-- Video -->
+                        <div th:if="${media.mediaPath.toLowerCase().endsWith('.mp4')
+                                 or media.mediaPath.toLowerCase().endsWith('.webm')
+                                 or media.mediaPath.toLowerCase().endsWith('.ogg')
+                                 or media.mediaPath.toLowerCase().endsWith('.mov')}">
+                            <video controls class="w-full h-48 bg-slate-900">
+                                <source th:src="@{'/uploads/' + ${media.mediaPath}}" type="video/mp4">
+                                Tu navegador no soporta video.
+                            </video>
+                            <p class="text-xs text-slate-500 px-3 py-2 truncate flex items-center gap-1">
+                                <i class="fas fa-video text-sky-500"></i>
+                                <span th:text="${media.mediaPath}"></span>
+                            </p>
+                        </div>
+
+                        <!-- Archivo genérico -->
+                        <div th:unless="${media.mediaPath.toLowerCase().endsWith('.jpg')
+                                     or media.mediaPath.toLowerCase().endsWith('.jpeg')
+                                     or media.mediaPath.toLowerCase().endsWith('.png')
+                                     or media.mediaPath.toLowerCase().endsWith('.gif')
+                                     or media.mediaPath.toLowerCase().endsWith('.webp')
+                                     or media.mediaPath.toLowerCase().endsWith('.mp4')
+                                     or media.mediaPath.toLowerCase().endsWith('.webm')
+                                     or media.mediaPath.toLowerCase().endsWith('.ogg')
+                                     or media.mediaPath.toLowerCase().endsWith('.mov')}"
+                             class="p-4">
+                            <div class="bg-slate-50 p-6 rounded-lg text-center border border-slate-100">
+                                <i class="fas fa-file-alt text-4xl text-sky-500 mb-2 block"></i>
+                                <p class="text-xs text-slate-500 break-words" th:text="${media.mediaPath}"></p>
+                            </div>
+                            <a th:href="@{'/uploads/' + ${media.mediaPath}}"
+                               download
+                               class="btn-primary mt-3 w-full text-sm">
+                                <i class="fas fa-download"></i>
+                                Descargar archivo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Conversación ───────────────────── -->
+            <div th:if="${comentarios != null and !comentarios.isEmpty()}" class="ticket-section">
+                <h3 class="section-heading">
+                    <span class="ticket-icon"><i class="fas fa-comments"></i></span>
+                    Conversación con soporte
+                </h3>
+
+                <div id="chat-historial" class="chat-scroll space-y-3">
+                    <div th:each="comentario : ${comentarios}"
+                         th:attr="data-comment-id=${comentario.id}"
+                         class="timeline-card p-4 animate-fade-in"
+                         th:classappend="${#strings.contains(comentario.remitente, 'Soporte') or #strings.contains(comentario.remitente, 'Admin')} ? 'timeline-card-admin' : 'timeline-card-user'">
+
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="avatar"
+                                     th:classappend="${#strings.contains(comentario.remitente, 'Soporte') or #strings.contains(comentario.remitente, 'Admin')} ? 'avatar-admin' : 'avatar-user'">
+                                    <i class="fas"
+                                       th:classappend="${#strings.contains(comentario.remitente, 'Soporte') or #strings.contains(comentario.remitente, 'Admin')} ? 'fa-user-shield' : 'fa-user'"></i>
+                                </div>
+                                <div>
+                                    <p class="comment-sender" th:text="${comentario.remitente}"></p>
+                                    <p class="comment-date"
+                                       th:text="${#temporals.format(comentario.marcaTemporal, 'dd/MM/yyyy HH:mm')}"></p>
+                                </div>
+                            </div>
+                            <span th:if="${comentario.tieneImagenes}" class="files-badge">
+                                <i class="fas fa-paperclip"></i>
+                                Archivos
+                            </span>
+                        </div>
+
+                        <p class="comment-body" th:text="${comentario.mensaje}"></p>
+
+                        <div th:if="${comentario.media != null and !comentario.media.isEmpty()}"
+                             class="mt-4 pt-3 border-t border-slate-100">
+                            <p class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
+                                <i class="fas fa-images text-sky-500"></i>
+                                Archivos adjuntos
+                            </p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <div th:each="media : ${comentario.media}">
+                                    <div th:if="${media.mediaPath.toLowerCase().endsWith('.jpg')
+                                              or media.mediaPath.toLowerCase().endsWith('.jpeg')
+                                              or media.mediaPath.toLowerCase().endsWith('.png')
+                                              or media.mediaPath.toLowerCase().endsWith('.gif')
+                                              or media.mediaPath.toLowerCase().endsWith('.webp')}">
+                                        <img th:src="@{'/uploads/' + ${media.mediaPath}}"
+                                             alt="Imagen"
+                                             class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition"
+                                             onclick="abrirImagenGrande(this.src)">
+                                    </div>
+                                    <div th:if="${media.mediaPath.toLowerCase().endsWith('.mp4')
+                                             or media.mediaPath.toLowerCase().endsWith('.webm')
+                                             or media.mediaPath.toLowerCase().endsWith('.ogg')
+                                             or media.mediaPath.toLowerCase().endsWith('.mov')}">
+                                        <video controls class="w-full h-24 rounded-lg">
+                                            <source th:src="@{'/uploads/' + ${media.mediaPath}}" type="video/mp4">
+                                        </video>
+                                    </div>
+                                    <div th:unless="${media.mediaPath.toLowerCase().endsWith('.jpg')
+                                                 or media.mediaPath.toLowerCase().endsWith('.jpeg')
+                                                 or media.mediaPath.toLowerCase().endsWith('.png')
+                                                 or media.mediaPath.toLowerCase().endsWith('.gif')
+                                                 or media.mediaPath.toLowerCase().endsWith('.webp')
+                                                 or media.mediaPath.toLowerCase().endsWith('.mp4')
+                                                 or media.mediaPath.toLowerCase().endsWith('.webm')
+                                                 or media.mediaPath.toLowerCase().endsWith('.ogg')
+                                                 or media.mediaPath.toLowerCase().endsWith('.mov')}">
+                                        <a th:href="@{'/uploads/' + ${media.mediaPath}}"
+                                           download
+                                           class="block bg-sky-50 border border-sky-100 p-3 rounded-lg hover:bg-sky-100 transition text-center">
+                                            <i class="fas fa-file-download text-2xl text-sky-500"></i>
+                                            <p class="text-xs text-slate-500 mt-1 truncate" th:text="${media.mediaPath}"></p>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Formulario de respuesta ─────────── -->
+            <div th:if="${ticket.estado == null or ticket.estado.toUpperCase() != 'CERRADO'}" class="ticket-section">
+                <h3 class="section-heading">
+                    <span class="ticket-icon"><i class="fas fa-comment-dots"></i></span>
+                    Agregar información o responder
+                </h3>
+
+                <form id="formResponder" enctype="multipart/form-data" class="reply-card p-5 md:p-7 space-y-5">
+                    <input type="hidden" name="ticketId" th:value="${ticket.id}">
+
+                    <div>
+                        <label class="form-label">
+                            <i class="fas fa-pen-to-square text-sky-600 mr-1"></i>
+                            Tu mensaje adicional
+                        </label>
+                        <textarea id="txtMensaje" name="mensaje" required rows="4"
+                                  placeholder="Escribe aquí... (Enter para enviar, Shift+Enter para salto de línea)"
+                                  class="form-textarea"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label">
+                            <i class="fas fa-paperclip text-sky-600 mr-1"></i>
+                            Adjuntar archivos <span class="font-normal text-slate-400 text-xs">(opcional)</span>
+                        </label>
+                        <input type="file" name="archivos" multiple
+                               accept="image/*,video/*,.pdf,.doc,.docx"
+                               class="form-file block
+                                      file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0
+                                      file:text-sm file:font-semibold file:bg-sky-100 file:text-sky-700
+                                      hover:file:bg-sky-200 file:cursor-pointer file:transition">
+                        <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                            <i class="fas fa-circle-info text-sky-400"></i>
+                            Imágenes, videos o documentos. Máximo 10 MB por archivo.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-1">
+                        <button type="button" onclick="this.closest('form').reset()" class="btn-secondary">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btnEnviar" class="btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            Enviar respuesta
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Ticket cerrado -->
+            <div th:if="${ticket.estado != null and ticket.estado.toUpperCase() == 'CERRADO'}" class="ticket-section">
+                <div class="closed-banner">
+                    <i class="fas fa-lock"></i>
+                    <h3>Ticket Cerrado</h3>
+                    <p>Este ticket ha sido cerrado y no se pueden agregar más respuestas.</p>
+                    <p class="mt-1 text-xs">Si necesitas ayuda adicional, por favor crea un nuevo ticket.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-center mt-8 pt-6 border-t border-slate-100">
+                <a href="/menu" class="btn-primary px-10 py-3 text-sm">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver al menú principal
+                </a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="al-footer mt-auto">
+    <div class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div>
+            <p class="al-footer-label">Austral Lens</p>
+            <p class="al-footer-text">Laboratorio óptico con más de 15 años de experiencia en Colombia.</p>
+        </div>
+        <div>
+            <p class="al-footer-label">Soporte</p>
+            <p class="al-footer-text">
+                <i class="fas fa-envelope mr-2 opacity-60"></i>soporte.sistemas@australlens.com<br>
+                <i class="fas fa-phone mr-2 opacity-60 mt-1"></i>(+57) 601 514 5827
+            </p>
+        </div>
+        <div class="hidden md:flex items-center justify-end">
+            <i class="fas fa-headset text-6xl opacity-10"></i>
+        </div>
+    </div>
+    <div class="al-footer-copy">
+        © 2026 Austral Lens Colombia · Todos los derechos reservados
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    function abrirImagenGrande(src) {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position:fixed;inset:0;background:rgba(0,0,0,.88);
+            display:flex;align-items:center;justify-content:center;
+            z-index:9999;cursor:zoom-out;animation:fadeInUp .2s ease;
+        `;
+        const img = document.createElement('img');
+        img.src = src;
+        img.style.cssText = `max-width:92%;max-height:92vh;border-radius:10px;box-shadow:0 24px 64px rgba(0,0,0,.6);`;
+        modal.appendChild(img);
+        modal.onclick = () => modal.remove();
+        document.body.appendChild(modal);
+    }
+</script>
+<script th:inline="javascript">
+    (function() {
+        const form = document.getElementById('formResponder');
+        const txt  = document.getElementById('txtMensaje');
+        const btn  = document.getElementById('btnEnviar');
+        if (!form) return;
+
+        txt.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (txt.value.trim()) form.dispatchEvent(new Event('submit', {cancelable: true}));
+            }
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!txt.value.trim()) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+            fetch('/tickets/responder', { method: 'POST', body: new FormData(form) })
+                .then(function(r) {
+                    if (r.ok) {
+                        txt.value = '';
+                        form.querySelector('input[type="file"]').value = '';
+                    } else {
+                        alert('Error al enviar el mensaje.');
+                    }
+                })
+                .catch(function() { alert('Error de conexión.'); })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar respuesta';
+                });
+        });
+    })();
+</script>
+<script th:inline="javascript">
+    (function() {
+        const ticketId = /*[[${ticket.id}]]*/ 0;
+        if (!ticketId) return;
+
+        const socket = new SockJS('/ws-notificaciones');
+        const stomp  = Stomp.over(socket);
+        stomp.debug  = null;
+
+        stomp.connect({}, function() {
+            stomp.subscribe('/topic/ticket/' + ticketId, function(msg) {
+                const c = JSON.parse(msg.body);
+                agregarComentarioAlChat(c);
+            });
+        }, function() {
+            setTimeout(function() { location.reload(); }, 5000);
+        });
+
+        function agregarComentarioAlChat(c) {
+            let contenedor = document.getElementById('chat-historial');
+            if (!contenedor) {
+                const formSection = document.getElementById('formResponder');
+                if (!formSection) return;
+                const wrapper = formSection.closest('.ticket-section');
+                const section = document.createElement('div');
+                section.className = 'ticket-section';
+                section.innerHTML = `
+                    <h3 class="section-heading">
+                        <span class="ticket-icon"><i class="fas fa-comments"></i></span>
+                        Conversación con soporte
+                    </h3>
+                    <div id="chat-historial" class="chat-scroll space-y-3"></div>
+                `;
+                wrapper.parentNode.insertBefore(section, wrapper);
+                contenedor = document.getElementById('chat-historial');
+            }
+
+            if (document.querySelector('[data-comment-id="' + c.id + '"]')) return;
+
+            const esAdmin = c.esAdmin;
+            const div = document.createElement('div');
+            div.className = 'timeline-card p-4 animate-fade-in ' + (esAdmin ? 'timeline-card-admin' : 'timeline-card-user');
+            div.dataset.commentId = c.id;
+
+            let mediasHtml = '';
+            if (c.mediaPaths && c.mediaPaths.length > 0) {
+                mediasHtml = '<div class="mt-4 pt-3 border-t border-slate-100"><div class="grid grid-cols-2 md:grid-cols-3 gap-2">';
+                c.mediaPaths.forEach(function(path) {
+                    const lower = path.toLowerCase();
+                    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp')) {
+                        mediasHtml += '<img src="/uploads/' + path + '" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition" onclick="abrirImagenGrande(this.src)">';
+                    } else if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov')) {
+                        mediasHtml += '<video controls class="w-full h-24 rounded-lg"><source src="/uploads/' + path + '" type="video/mp4"></video>';
+                    } else {
+                        mediasHtml += '<a href="/uploads/' + path + '" download class="block bg-sky-50 border border-sky-100 p-3 rounded-lg text-center hover:bg-sky-100 transition"><i class="fas fa-file-download text-2xl text-sky-500"></i><p class="text-xs text-slate-500 mt-1 truncate">' + path + '</p></a>';
+                    }
+                });
+                mediasHtml += '</div></div>';
+            }
+
+            const fecha = new Date(c.marcaTemporal).toLocaleString();
+            const nombreMostrar = esAdmin ? (c.remitente + ' (Soporte)') : c.remitente;
+            div.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="avatar ${esAdmin ? 'avatar-admin' : 'avatar-user'}">
+                            <i class="fas ${esAdmin ? 'fa-user-shield' : 'fa-user'}"></i>
+                        </div>
+                        <div>
+                            <p class="comment-sender">${nombreMostrar}</p>
+                            <p class="comment-date">${fecha}</p>
+                        </div>
+                    </div>
+                    ${c.tieneImagenes ? '<span class="files-badge"><i class="fas fa-paperclip"></i> Archivos</span>' : ''}
+                </div>
+                <p class="comment-body">${c.mensaje}</p>
+                ${mediasHtml}
+            `;
+
+            contenedor.appendChild(div);
+            contenedor.scrollTop = contenedor.scrollHeight;
+        }
+    })();
+</script>
+
+</body>
+</html>

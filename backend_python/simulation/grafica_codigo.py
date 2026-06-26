@@ -11,7 +11,7 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 db_path = os.path.join(DB_DIR, "inventario.db")
 conn = sqlite3.connect(db_path)
 
-codigo = "188486.0"
+codigo = "784494.0"
 
 df = pd.read_sql_query(f"""
 SELECT fecha, stock

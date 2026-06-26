@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Perfil - Austral Lens</title>
+
+    <link th:href="@{/main.css}" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+    <style>
+        :root {
+            --al-blue:       #007DC8;
+            --al-blue-light: #0096C8;
+            --al-blue-dark:  #004B96;
+            --al-blue-xpale: #e8f4fd;
+        }
+
+        .al-card-soft {
+            transition: all .2s ease;
+        }
+
+        .al-card-soft:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,125,200,.15);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col"
+      style="background: linear-gradient(135deg, var(--al-blue-xpale), #f0f8ff);">
+
+<!-- NAVBAR -->
+<nav class="px-6 py-3 flex items-center justify-between shadow-md"
+     style="background: linear-gradient(135deg, var(--al-blue-dark), var(--al-blue), var(--al-blue-light));">
+
+    <img src="/images/logo.png"
+         class="h-12 md:h-16 object-contain brightness-0 invert">
+
+    <div class="flex items-center gap-4 text-white text-sm font-medium">
+        <a href="/menu" class="transition hover:opacity-80">
+            Volver al soporte
+        </a>
+
+        <a href="/logout"
+           class="px-4 py-1.5 rounded-full transition"
+           style="background:rgba(255,255,255,.15);"
+           onmouseover="this.style.background='rgba(255,255,255,.25)'"
+           onmouseout="this.style.background='rgba(255,255,255,.15)'">
+            Cerrar sesión
+        </a>
+    </div>
+</nav>
+
+<!-- PERFIL -->
+<section class="px-6 md:px-16 py-8 max-w-6xl mx-auto">
+
+    <h1 class="text-2xl font-bold mb-6 flex items-center gap-2"
+        style="color:var(--al-blue-dark); border-left:4px solid var(--al-blue); padding-left:.5rem;">
+        <i class="fas fa-user text-sm"></i>
+        Perfil del Usuario
+    </h1>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Nombre completo</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.nombre : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Cédula</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.cedula : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Teléfono</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.telefono : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Punto</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.punto : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Cargo</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.cargo : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px]"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Ciudad</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.ciudad : '—'}"></p>
+        </div>
+
+        <div class="p-4 md:p-6 rounded-lg al-card-soft w-full min-h-[100px] sm:col-span-2 lg:col-span-3"
+             style="background:var(--al-blue-xpale); border:1px solid #cfe7f7;">
+            <p class="text-xs md:text-sm text-gray-500">Email</p>
+            <p class="font-bold text-base md:text-lg" style="color:var(--al-blue-dark);"
+               th:text="${usuario != null ? usuario.email : '—'}"></p>
+        </div>
+
+    </div>
+
+</section>
+
+<!-- FOOTER -->
+<footer class="text-white mt-auto"
+        style="background:var(--al-blue-dark);">
+
+    <div class="max-w-6xl mx-auto px-6 py-8 grid md:grid-cols-3 gap-8">
+        <div>
+            <h3 class="font-bold text-lg">Austral Lens</h3>
+            <p class="text-sm text-blue-200">Laboratorio óptico.</p>
+        </div>
+
+        <div>
+            <h3 class="font-bold text-lg">Soporte</h3>
+            <p class="text-sm text-blue-200">soporte.sistemas@australlens.com</p>
+        </div>
+    </div>
+
+    <div style="background:#003b75;"
+         class="text-center py-3 text-xs text-blue-200">
+        © 2026 Austral Lens
+    </div>
+
+</footer>
+
+</body>
+</html>
