@@ -33,7 +33,7 @@ public class SecurityConfig {
 
                         // 👤 USER y ADMIN pueden entrar aquí
                         .requestMatchers("/menu", "/perfil", "/ticket/**",
-                                "/api/notificaciones/**", "/tickets/**")
+                                "/api/notificaciones/**", "/api/ia/**", "/tickets/**")
                         .hasAnyRole("USER", "ADMIN")
 
                         .anyRequest().authenticated()
