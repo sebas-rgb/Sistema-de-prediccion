@@ -13,19 +13,24 @@ dependencies = [
     "scikit-learn>=1.3",
     "joblib>=1.3",
     "openpyxl>=3.1",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4",
+    "httpx>=0.26",
 ]
-# La fase siguiente (API) anadira aqui: fastapi, uvicorn, pydantic
 
 [project.scripts]
 inventory-ingest = "inventory_ml.ingestion.perfilado:main"
 inventory-simulate = "inventory_ml.simulation.simulador:main"
 inventory-train = "inventory_ml.training.train:main"
 inventory-riesgo = "inventory_ml.reporting.riesgo:main"
+inventory-evaluar = "inventory_ml.training.evaluar:main"
+inventory-experimento = "inventory_ml.simulation.experimento:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

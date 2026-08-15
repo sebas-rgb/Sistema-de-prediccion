@@ -17,35 +17,12 @@
             --al-blue-xpale: #e8f4fd;
         }
     </style>
-
-    <script th:inline="javascript">
-        const usuarioSesion = {
-            id: [[${usuario.id}]],
-            nombre: [[${usuario.nombre}]],
-            email: [[${usuario.email}]],
-            cedula: [[${usuario.cedula}]],
-            telefono: [[${usuario.telefono}]],
-            ciudad: [[${usuario.ciudad}]]
-        };
-    </script>
-
-    <script defer>
-        document.addEventListener("DOMContentLoaded", () => {
-            // Lógica de tickets removida - solo mantener inicializaciones básicas
-            const modal = document.getElementById("modal");
-
-            window.closeModal = function() {
-                modal.classList.add("hidden");
-            };
-
-            modal.onclick = (e) => { if(e.target === modal) closeModal(); };
-        });
-    </script>
-
 </head>
 
 <body class="min-h-screen flex flex-col"
-      style="background: linear-gradient(135deg, var(--al-blue-xpale) 0%, #f0f8ff 100%);"><div th:if="${!usuario.datosCompletos}"
+      style="background: linear-gradient(135deg, var(--al-blue-xpale) 0%, #f0f8ff 100%);">
+
+<div th:if="${!usuario.datosCompletos}"
      id="modalDatos"
      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
 
@@ -211,7 +188,6 @@
                 <small class="text-gray-500">Solo números, entre 7 y 15 dígitos (formato internacional).</small>
             </div>
 
-
             <!-- Habeas Data -->
             <label class="flex items-center space-x-2 text-sm text-gray-600">
                 <input type="checkbox" required>
@@ -225,7 +201,6 @@
         </form>
     </div>
 </div>
-
 
 
 <nav class="px-6 py-3 flex items-center justify-between shadow-md"
@@ -245,60 +220,6 @@
            class="bg-gray-200 px-4 py-1 rounded-full hover:bg-gray-300 transition text-gray-700 font-medium">
             Cerrar Sesión
         </a>
-
-        <!-- CAMPANA -->
-        <div class="relative">
-            <button id="btnNotificaciones"
-                    aria-label="Ver notificaciones"
-                    class="relative p-2 rounded-full hover:bg-sky-500/20 transition">
-
-                <!-- icono -->
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-6 h-6 text-white"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke="currentColor">
-                    <path stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0
-                          0118 14.158V11a6.002 6.002 0
-                          00-4-5.659V5a2 2 0
-                          10-4 0v.341C7.67 6.165 6 8.388
-                          6 11v3.159c0 .538-.214 1.055-.595
-                          1.436L4 17h5m6 0v1a3 3 0
-                          11-6 0v-1m6 0H9"/>
-                </svg>
-
-                <!-- contador -->
-                <span id="contadorNotificaciones"
-                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs
-                      rounded-full px-1.5 hidden">
-                    0
-                </span>
-            </button>
-
-            <!-- DROPDOWN -->
-            <div id="dropdownNotificaciones"
-                 class="hidden absolute right-0 mt-3 w-80 bg-white
-                 border border-gray-200 rounded-lg shadow-lg z-50">
-
-                <div class="p-3 border-b font-semibold text-gray-700 flex justify-between items-center">
-                    <span>Notificaciones</span>
-                    <button id="btnMarcarTodas"
-                            class="text-xs text-sky-600 hover:text-sky-800 hover:underline">
-                        Marcar todas como leidas
-                    </button>
-                </div>
-
-                <div id="listaNotificaciones"
-                     class="max-h-80 overflow-y-auto text-sm">
-                    <div class="p-3 text-gray-500">
-                        Sin notificaciones
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </nav>
 
@@ -306,7 +227,7 @@
     <h1 class="text-3xl font-bold text-sky-800">
         ¡Hola, <span th:text="${usuario.nombre}">Usuario</span>!
     </h1>
-    <p class="text-sky-600 mt-1">¿En qué podemos ayudarte hoy?</p>
+    <p class="text-sky-600 mt-1">Predicción de agotamiento de inventario</p>
 </header>
 
 <main class="max-w-6xl mx-auto w-full space-y-12 pb-12">
@@ -321,6 +242,12 @@
             <div class="mb-4 flex flex-col md:flex-row gap-4 items-center justify-between">
                 <input type="text" id="searchInventory" placeholder="Buscar por código..."
                        class="flex-1 px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
+
+                <!-- Selector de fecha: la simulación cubre un año completo -->
+                <input type="date" id="fechaInventario"
+                       title="Fecha del snapshot de inventario"
+                       class="px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
+
                 <button id="downloadCSV" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition">
                     <i class="fas fa-download mr-2"></i> Descargar CSV
                 </button>
@@ -329,20 +256,19 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sky-100 border-b border-sky-300">
-                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Código</th>
-                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Fecha</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Stock Actual</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Agotado 30d</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Clase</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Consumo Prom.</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Prob. Agotamiento</th>
-                        </tr>
+                    <tr class="bg-sky-100 border-b border-sky-300">
+                        <th class="px-4 py-2 text-left text-sky-700 font-semibold">Código</th>
+                        <th class="px-4 py-2 text-left text-sky-700 font-semibold">Fecha</th>
+                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Stock Actual</th>
+                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Clase</th>
+                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Consumo Prom.</th>
+                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Riesgo de agotamiento</th>
+                    </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr class="text-center text-gray-500">
-                            <td colspan="7" class="py-8">Cargando datos...</td>
-                        </tr>
+                    <tr class="text-center text-gray-500">
+                        <td colspan="6" class="py-8">Cargando datos...</td>
+                    </tr>
                     </tbody>
                 </table>
             </div>
@@ -356,10 +282,6 @@
     </section>
 
 </main>
-
-<div id="modal" class="hidden fixed inset-0 bg-sky-800/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div id="modal-content" class="w-full flex justify-center"></div>
-</div>
 
 <footer class="bg-sky-800 text-white mt-auto">
     <div class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -380,274 +302,9 @@
         © 2026 Austral Lens Colombia · Todos los derechos reservados
     </div>
 </footer>
-<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-<script>
-    const btn = document.getElementById("btnNotificaciones");
-    const dropdown = document.getElementById("dropdownNotificaciones");
-    const lista = document.getElementById("listaNotificaciones");
-    const contador = document.getElementById("contadorNotificaciones");
-    const rolUsuario = "USER";
 
-    btn.addEventListener("click", () => dropdown.classList.toggle("hidden"));
-    document.addEventListener("click", (e) => {
-        if (!btn.contains(e.target) && !dropdown.contains(e.target))
-            dropdown.classList.add("hidden");
-    });
-
-    function actualizarContador() {
-        fetch('/api/notificaciones/' + rolUsuario + '/no-leidas')
-            .then(r => r.json())
-            .then(count => {
-                if (count > 0) {
-                    contador.textContent = count;
-                    contador.classList.remove("hidden");
-                } else {
-                    contador.classList.add("hidden");
-                }
-            });
-    }
-
-    function renderNotificacion(n) {
-        const item = document.createElement("div");
-        item.className = "p-3 border-b hover:bg-gray-50 cursor-pointer flex items-start gap-2 transition-all duration-300";
-        item.dataset.id = n.id;
-
-        const punto = n.leida
-            ? ""
-            : '<span class="mt-1.5 min-w-2 min-h-2 w-2 h-2 bg-red-500 rounded-full inline-block"></span>';
-
-        item.innerHTML =
-            punto +
-            '<div class="flex-1">' +
-                '<div class="font-semibold text-gray-800">' + n.tipo + '</div>' +
-                '<div class="text-gray-600 text-xs">' + n.mensaje + '</div>' +
-                '<div class="text-gray-400 text-xs">' + new Date(n.fecha).toLocaleString() + '</div>' +
-            '</div>';
-
-        item.addEventListener("click", function() {
-            fetch("/api/notificaciones/marcar-leida/" + n.id, { method: "POST" })
-                .then(function() {
-                    actualizarContador();
-                    item.style.opacity = "0";
-                    setTimeout(function() {
-                        item.remove();
-                        if (lista.children.length === 0)
-                            lista.innerHTML = '<div class="p-3 text-gray-500">Sin notificaciones</div>';
-                    }, 300);
-                });
-        });
-        return item;
-    }
-
-    function cargarNotificaciones() {
-        fetch('/api/notificaciones/' + rolUsuario)
-            .then(r => r.json())
-            .then(data => {
-                lista.innerHTML = "";
-                const noLeidas = data.filter(n => !n.leida);
-                if (noLeidas.length === 0) {
-                    lista.innerHTML = '<div class="p-3 text-gray-500">Sin notificaciones</div>';
-                } else {
-                    noLeidas.forEach(n => lista.appendChild(renderNotificacion(n)));
-                }
-                actualizarContador();
-            })
-            .catch(err => console.error("Error cargando notificaciones", err));
-    }
-
-    // WebSocket
-    function conectarWebSocket() {
-        const socket = new SockJS('/ws-notificaciones');
-        const stomp = Stomp.over(socket);
-        stomp.debug = null;
-
-        stomp.connect({}, function() {
-            stomp.subscribe('/topic/notificaciones/user/' + usuarioSesion.id, function(msg) {
-                const n = JSON.parse(msg.body);
-
-                if (lista.querySelector('.text-gray-500')) lista.innerHTML = "";
-                lista.insertBefore(renderNotificacion(n), lista.firstChild);
-                if (lista.children.length > 15) lista.removeChild(lista.lastChild);
-
-                actualizarContador();
-            });
-        }, function() {
-            setTimeout(conectarWebSocket, 5000);
-        });
-    }
-
-    const btnMarcarTodas = document.getElementById("btnMarcarTodas");
-
-    // Marcar todas como leidas
-    btnMarcarTodas.addEventListener("click", function() {
-        fetch('/api/notificaciones/' + rolUsuario + '/marcar-todas-leidas', { method: "POST" })
-            .then(function() {
-                [...lista.children].forEach(function(item) {
-                    item.style.opacity = "0";
-                    item.style.transition = "opacity 0.3s";
-                });
-                setTimeout(function() {
-                    lista.innerHTML = '<div class="p-3 text-gray-500">Sin notificaciones</div>';
-                    actualizarContador();
-                }, 350);
-            });
-    });
-
-    cargarNotificaciones();
-    conectarWebSocket();
-</script>
-
-<!-- Script para cargar y mostrar CSV de inventario -->
-<script defer>
-    const ITEMS_PER_PAGE = 10;
-    let allData = [];
-    let filteredData = [];
-    let currentPage = 1;
-
-    // Cargar CSV
-    async function cargarCSV() {
-        try {
-            const response = await fetch('/temp/validacion_externa.csv');
-            const text = await response.text();
-            parsearCSV(text);
-        } catch (err) {
-            console.error("Error cargando CSV:", err);
-            document.getElementById('tableBody').innerHTML =
-                '<tr class="text-center text-red-500"><td colspan="7">Error al cargar datos</td></tr>';
-        }
-    }
-
-    // Parsear CSV
-    function parsearCSV(csv) {
-        const lines = csv.trim().split('\n');
-        const headers = lines[0].split(',');
-
-        allData = [];
-        for (let i = 1; i < lines.length; i++) {
-            if (lines[i].trim() === '') continue;
-            const values = lines[i].split(',');
-            const obj = {};
-            headers.forEach((header, idx) => {
-                obj[header.trim()] = values[idx]?.trim() || '';
-            });
-            allData.push(obj);
-        }
-
-        filteredData = [...allData];
-        renderizarTabla();
-        actualizarEstadisticas();
-    }
-
-    // Renderizar tabla
-    function renderizarTabla() {
-        const tableBody = document.getElementById('tableBody');
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        const paginaData = filteredData.slice(start, end);
-
-        if (paginaData.length === 0) {
-            tableBody.innerHTML = '<tr class="text-center text-gray-500"><td colspan="7" class="py-8">No hay resultados</td></tr>';
-            renderizarPaginacion();
-            return;
-        }
-
-        tableBody.innerHTML = paginaData.map(row => `
-            <tr class="border-b hover:bg-sky-50 transition-colors">
-                <td class="px-4 py-2 font-mono text-sky-600">${row.codigo}</td>
-                <td class="px-4 py-2 text-gray-600">${row.fecha}</td>
-                <td class="px-4 py-2 text-center font-semibold ${row.stock_actual == 0 ? 'text-red-600' : 'text-green-600'}">${row.stock_actual}</td>
-                <td class="px-4 py-2 text-center">${row.agotado_30d == 1 ? '<span class="bg-red-100 text-red-700 px-2 py-1 rounded">Sí</span>' : '<span class="bg-green-100 text-green-700 px-2 py-1 rounded">No</span>'}</td>
-                <td class="px-4 py-2 text-center"><span class="bg-sky-100 text-sky-700 px-2 py-1 rounded">${row.clase}</span></td>
-                <td class="px-4 py-2 text-center">${parseFloat(row.consumo_promedio).toFixed(2)}</td>
-                <td class="px-4 py-2 text-center">${(parseFloat(row.probabilidad_agotamiento) * 100).toFixed(1)}%</td>
-            </tr>
-        `).join('');
-
-        renderizarPaginacion();
-    }
-
-    // Paginación
-    function renderizarPaginacion() {
-        const container = document.getElementById('paginationContainer');
-        const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-
-        if (totalPages <= 1) {
-            container.innerHTML = '';
-            return;
-        }
-
-        let html = '';
-
-        if (currentPage > 1) {
-            html += `<button onclick="irPagina(1)" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">«</button>`;
-            html += `<button onclick="irPagina(${currentPage - 1})" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Anterior</button>`;
-        }
-
-        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
-            html += `<a onclick="irPagina(${i})" class="px-3 py-2 rounded cursor-pointer ${i === currentPage ? 'bg-sky-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">${i}</a>`;
-        }
-
-        if (currentPage < totalPages) {
-            html += `<button onclick="irPagina(${currentPage + 1})" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Siguiente</button>`;
-            html += `<button onclick="irPagina(${totalPages})" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">»</button>`;
-        }
-
-        container.innerHTML = html;
-    }
-
-    // Ir a página
-    window.irPagina = function(page) {
-        currentPage = page;
-        renderizarTabla();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    // Buscar
-    document.getElementById('searchInventory').addEventListener('input', (e) => {
-        const search = e.target.value.toLowerCase();
-        filteredData = allData.filter(row => row.codigo.toLowerCase().includes(search));
-        currentPage = 1;
-        renderizarTabla();
-        actualizarEstadisticas();
-    });
-
-    // Descargar CSV
-    document.getElementById('downloadCSV').addEventListener('click', () => {
-        const csv = [
-            ['codigo', 'fecha', 'stock_actual', 'agotado_30d', 'clase', 'stock_inicial', 'consumo_promedio', 'consumo_minimo', 'consumo_maximo', 'reposicion_promedio', 'frecuencia_movimiento', 'probabilidad_agotamiento'].join(','),
-            ...filteredData.map(row => {
-                const headers = Object.keys(row);
-                return headers.map(h => `"${row[h]}"`).join(',');
-            })
-        ].join('\n');
-
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'inventario_' + new Date().toISOString().split('T')[0] + '.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-    });
-
-    // Estadísticas
-    function actualizarEstadisticas() {
-        const total = filteredData.length;
-        const agotados = filteredData.filter(r => r.agotado_30d == 1).length;
-        const sinStock = filteredData.filter(r => r.stock_actual == 0).length;
-
-        document.getElementById('statsInfo').innerHTML = `
-            Mostrando <strong>${Math.min(ITEMS_PER_PAGE, filteredData.length)}</strong> de <strong>${total}</strong> registros |
-            Agotados (30d): <strong>${agotados}</strong> |
-            Sin stock: <strong>${sinStock}</strong>
-        `;
-    }
-
-    // Inicializar
-    cargarCSV();
-</script>
+<!-- Tabla de inventario: consume /api/inventario (Spring -> FastAPI). -->
+<script th:src="@{/menu-inventario.js}" defer></script>
 
 </body>
 </html>
-

@@ -52,6 +52,24 @@ def parse_fecha(valor: object) -> pd.Timestamp:
         return pd.NaT
 
 
+def normalizar_codigo(valor: object) -> str:
+    """Devuelve el codigo como texto limpio.
+
+    pd.read_csv lee una columna de codigos numericos como float64, asi que
+    str(codigo) produce "782123.0". Eso ensucia la interfaz y rompe cualquier
+    cruce futuro contra los codigos reales del sistema.
+    """
+    if pd.isna(valor):
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    texto = str(valor).strip()
+    # "782123.0" leido como texto
+    if texto.endswith(".0") and texto[:-2].isdigit():
+        return texto[:-2]
+    return texto
+
+
 def detectar_columnas(df: pd.DataFrame) -> tuple[str, str, str]:
     """Heuristica original de deteccion de columnas."""
     fecha = next((c for c in df.columns if "fecha" in c.lower()), None)
@@ -87,6 +105,8 @@ def perfilar(
     col_fecha, col_codigo, col_stock = columnas or detectar_columnas(df)
 
     df = df.copy()
+    df[col_codigo] = df[col_codigo].apply(normalizar_codigo)
+    df = df[df[col_codigo] != ""]
     df["_fecha"] = df[col_fecha].apply(parse_fecha)
     sin_fecha = int(df["_fecha"].isna().sum())
     if sin_fecha:
@@ -118,7 +138,7 @@ def perfilar(
 
         productos.append(
             {
-                "codigo": str(codigo),
+                "codigo": normalizar_codigo(codigo),
                 "clase": clasificar(frecuencia),
                 "observaciones": len(s),
                 "stock_actual": round(stock_actual, 2),

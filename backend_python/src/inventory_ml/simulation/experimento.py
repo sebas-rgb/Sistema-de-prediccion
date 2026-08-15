@@ -1,0 +1,226 @@
+"""Experimento contrafactual: ¿comprar con el modelo evita quiebres?
+
+Compara dos politicas de reposicion sobre EXACTAMENTE la misma demanda:
+
+  REACTIVA   (la actual): pedir cuando el stock llega a 0.
+  PREDICTIVA (el modelo): pedir cuando P(agotamiento) >= umbral.
+
+La demanda se genera UNA vez y se congela. Ambos brazos enfrentan el mismo
+flujo dia a dia, asi que cualquier diferencia en el resultado viene de la
+politica y no del azar. Sin eso, la comparacion no significa nada.
+
+Metricas:
+  dias_agotado          dias-producto con stock en cero
+  unidades_no_servidas  demanda que llego y no se pudo atender
+  fill_rate             fraccion de la demanda total atendida
+  pedidos               cuantas ordenes se emitieron
+  stock_promedio        capital inmovilizado (el costo de anticiparse)
+
+Uso:
+    python -m inventory_ml.simulation.experimento --umbral 0.8
+    python -m inventory_ml.simulation.experimento --umbral 0.5 --umbral 0.7 --umbral 0.9
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import random
+import sqlite3
+from pathlib import Path
+
+import pandas as pd
+
+from inventory_ml import config
+from inventory_ml.features import COLUMNAS_NUMERICAS, COLUMNA_CATEGORICA
+from inventory_ml.inference import Predictor
+
+logger = logging.getLogger(__name__)
+
+
+def cargar_productos(db_path: Path) -> list[dict]:
+    with sqlite3.connect(db_path) as conn:
+        return pd.read_sql("SELECT * FROM productos", conn).to_dict("records")
+
+
+def generar_demanda(productos: list[dict], dias: int, semilla: int) -> dict[str, list[int]]:
+    """Demanda diaria por producto, independiente del stock disponible.
+
+    Clave del experimento: se genera una sola vez. Ambas politicas ven la misma
+    secuencia, incluyendo la demanda que la politica reactiva no puede atender.
+    """
+    rng = random.Random(semilla)
+    demanda: dict[str, list[int]] = {}
+    for p in productos:
+        codigo = str(p["codigo"])
+        minimo = max(1, int(round(p["consumo_minimo"])))
+        maximo = max(int(round(p["consumo_maximo"])), minimo)
+        demanda[codigo] = [
+            rng.randint(minimo, maximo) if rng.random() < p["frecuencia_movimiento"] else 0
+            for _ in range(dias)
+        ]
+    return demanda
+
+
+def _cantidad_pedido(p: dict) -> int:
+    return max(1, int(round(max(p["reposicion_promedio"], p.get("stock_promedio") or 0))))
+
+
+def simular_politica(
+    productos: list[dict],
+    demanda: dict[str, list[int]],
+    dias: int,
+    lead_time: int,
+    politica: str,
+    predictor: Predictor | None = None,
+    umbral: float = 0.8,
+    red_seguridad: bool = True,
+) -> dict:
+    """Corre la simulacion bajo una politica y devuelve metricas agregadas."""
+    stock = {str(p["codigo"]): int(round(p["stock_inicial"])) for p in productos}
+    pendientes: dict[str, int] = {}  # codigo -> dia de llegada
+    por_codigo = {str(p["codigo"]): p for p in productos}
+
+    con_demanda = {c for c, serie in demanda.items() if sum(serie) > 0}
+    dias_agotado = 0
+    dias_agotado_utiles = 0
+    no_servidas = 0
+    demanda_total = 0
+    pedidos = 0
+    stock_acumulado = 0
+
+    for dia in range(dias):
+        # llegadas
+        for codigo, dia_llegada in list(pendientes.items()):
+            if dia_llegada <= dia:
+                stock[codigo] += _cantidad_pedido(por_codigo[codigo])
+                del pendientes[codigo]
+
+        # demanda del dia
+        for codigo, serie in demanda.items():
+            d = serie[dia]
+            demanda_total += d
+            atendido = min(d, stock[codigo])
+            stock[codigo] -= atendido
+            no_servidas += d - atendido
+
+        # decision de compra
+        if politica == "reactiva":
+            for codigo, s in stock.items():
+                if s <= 0 and codigo not in pendientes:
+                    pendientes[codigo] = dia + lead_time
+                    pedidos += 1
+        else:
+            # Red de seguridad: si ya estas en cero, pides. Sin esto la politica
+            # predictiva abandona los productos agotados, porque el modelo
+            # aprendio que "stock 0" se resuelve solo (alguien reponia siempre).
+            if red_seguridad:
+                for codigo, s_ in stock.items():
+                    if s_ <= 0 and codigo not in pendientes:
+                        pendientes[codigo] = dia + lead_time
+                        pedidos += 1
+
+            candidatos = [c for c in stock if c not in pendientes]
+            if candidatos:
+                filas = []
+                for codigo in candidatos:
+                    p = por_codigo[codigo]
+                    fila = {"codigo": codigo, "stock_actual": stock[codigo]}
+                    for col in COLUMNAS_NUMERICAS:
+                        if col != "stock_actual":
+                            fila[col] = p[col]
+                    fila[COLUMNA_CATEGORICA] = p[COLUMNA_CATEGORICA]
+                    filas.append(fila)
+                # una sola llamada vectorizada por dia, no una por producto
+                for r in predictor.predict_batch(filas):
+                    if r["probabilidad_agotamiento"] >= umbral:
+                        pendientes[r["codigo"]] = dia + lead_time
+                        pedidos += 1
+
+        dias_agotado += sum(1 for s in stock.values() if s <= 0)
+        dias_agotado_utiles += sum(
+            1 for c, s in stock.items() if s <= 0 and c in con_demanda
+        )
+        stock_acumulado += sum(stock.values())
+
+    n = len(stock) * dias
+    return {
+        "politica": politica if politica == "reactiva" else f"predictiva@{umbral}",
+        "dias_agotado": dias_agotado,
+        "dias_agotado_utiles": dias_agotado_utiles,
+        "unidades_no_servidas": no_servidas,
+        "fill_rate": round(1 - no_servidas / max(demanda_total, 1), 4),
+        "pedidos": pedidos,
+        "stock_promedio": round(stock_acumulado / n, 1),
+    }
+
+
+def comparar(
+    db_path: Path,
+    dias: int,
+    lead_time: int,
+    semilla: int,
+    umbrales: list[float],
+    red_seguridad: bool = True,
+) -> pd.DataFrame:
+    productos = cargar_productos(db_path)
+    demanda = generar_demanda(productos, dias, semilla)
+    logger.info("Demanda congelada: %s productos x %s dias", len(productos), dias)
+
+    resultados = [
+        simular_politica(productos, demanda, dias, lead_time, "reactiva")
+    ]
+    predictor = Predictor.cargar()
+    for u in umbrales:
+        resultados.append(
+            simular_politica(
+                productos, demanda, dias, lead_time, "predictiva", predictor, u,
+                red_seguridad=red_seguridad,
+            )
+        )
+
+    tabla = pd.DataFrame(resultados).set_index("politica")
+    base = tabla.loc["reactiva", "unidades_no_servidas"]
+    tabla["mejora_servicio"] = (
+        (100 * (base - tabla["unidades_no_servidas"]) / max(base, 1)).round(1).astype(str) + "%"
+    )
+    return tabla
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    parser = argparse.ArgumentParser(description="Compara politicas de reposicion")
+    parser.add_argument("--db", type=Path, default=config.DB_PATH)
+    parser.add_argument("--dias", type=int, default=365)
+    parser.add_argument("--lead-time", type=int, default=config.LEAD_TIME_DIAS)
+    parser.add_argument("--semilla", type=int, default=777)
+    parser.add_argument("--umbral", type=float, action="append", default=None)
+    parser.add_argument(
+        "--sin-red",
+        action="store_true",
+        help="Desactiva la red de seguridad (reproduce el resultado degenerado)",
+    )
+    parser.add_argument("--salida", type=Path, default=config.ARTIFACTS_DIR / "reports")
+    args = parser.parse_args()
+
+    umbrales = args.umbral or [0.5, 0.7, 0.8, 0.9]
+    tabla = comparar(
+        args.db, args.dias, args.lead_time, args.semilla, umbrales,
+        red_seguridad=not args.sin_red,
+    )
+
+    print("\n=== Comparacion de politicas (misma demanda) ===")
+    print(tabla.to_string())
+    print(
+        "\ndias_agotado_utiles cuenta solo productos CON demanda (los muertos en cero"
+        "\nno son un problema). La metrica que decide es unidades_no_servidas."
+    )
+
+    args.salida.mkdir(parents=True, exist_ok=True)
+    tabla.to_csv(args.salida / "comparacion_politicas.csv")
+    logger.info("Guardado en %s", args.salida / "comparacion_politicas.csv")
+
+
+if __name__ == "__main__":
+    main()
