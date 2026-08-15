@@ -1,1 +1,11 @@
-/.venv/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+data/*.db
+artifacts/models/*.joblib
+artifacts/models/*.metadata.json
+results/
+.pytest_cache/

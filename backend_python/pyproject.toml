@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventory-ml"
+version = "0.1.0"
+description = "Prediccion de agotamiento de inventario a 30 dias"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "joblib>=1.3",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+]
+# La fase siguiente (API) anadira aqui: fastapi, uvicorn, pydantic
+
+[project.scripts]
+inventory-ingest = "inventory_ml.ingestion.perfilado:main"
+inventory-simulate = "inventory_ml.simulation.simulador:main"
+inventory-train = "inventory_ml.training.train:main"
+inventory-riesgo = "inventory_ml.reporting.riesgo:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

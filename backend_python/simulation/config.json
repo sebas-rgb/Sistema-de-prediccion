@@ -1,9 +1,0 @@
-{
-  "dias_simulacion": 365,
-  "lead_time_dias": 30,
-  "usar_punto_reorden": false,
-  "comprar_cuando_llegue_a_cero": true,
-  "permitir_consumo_con_stock_cero": false,
-  "semilla_random": 4202,
-  "guardar_movimientos": true
-}
