@@ -68,6 +68,17 @@ def preparar_features(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------
 
 
+def _stock_minimo_futuro(stock: pd.Series, horizonte_dias: int) -> pd.Series:
+    """Minimo del stock en la ventana [hoy, hoy + horizonte].
+
+    Se invierte la serie para que rolling(), que mira hacia atras, mire hacia
+    adelante; luego se devuelve al orden original.
+    """
+    invertida = stock[::-1]
+    ventana = horizonte_dias + 1  # +1 para incluir el dia actual
+    return invertida.rolling(ventana, min_periods=ventana).min()[::-1]
+
+
 def construir_dataset(
     inventario: pd.DataFrame,
     productos: pd.DataFrame,
@@ -75,9 +86,26 @@ def construir_dataset(
 ) -> pd.DataFrame:
     """Cruza snapshots diarios de inventario con atributos de producto.
 
-    Supuesto: `inventario` tiene exactamente un snapshot por (codigo, dia)
-    y los dias son contiguos por producto (lo garantiza el simulador).
-    Bajo ese supuesto, shift(-horizonte) equivale a mirar el stock a N dias.
+    DEFINICION DEL TARGET
+    ---------------------
+    `agotado_30d = 1` si el stock llega a cero EN ALGUN MOMENTO dentro de los
+    proximos N dias, incluido hoy:
+
+        min(stock[t .. t+N]) <= 0
+
+    Antes se usaba `stock[t+N] <= 0`, una sola foto al final del horizonte.
+    Eso resultaba contaminado por la politica de reposicion: en el simulador
+    el pedido llega exactamente a los N dias, asi que un producto que pasaba
+    29 dias en cero quedaba etiquetado como "no agotado" solo porque el dia N
+    ya habia llegado mercancia. El modelo aprendia que estar en cero no era
+    problema, y asignaba riesgo BAJO a productos ya agotados.
+
+    Con el minimo de la ventana, un producto en cero hoy queda marcado
+    siempre, y la pregunta que responde el modelo pasa a ser la util:
+    "¿me quedare sin producto en los proximos N dias?".
+
+    Supuesto: `inventario` tiene exactamente un snapshot por (codigo, dia) y
+    los dias son contiguos por producto (lo garantiza el simulador).
 
     Devuelve columnas: codigo, fecha, FEATURES..., TARGET.
     """
@@ -91,9 +119,11 @@ def construir_dataset(
             f"Hay {duplicados} snapshots duplicados (codigo, fecha) en inventario"
         )
 
-    inv["stock_futuro"] = inv.groupby("codigo")["stock"].shift(-horizonte_dias)
-    inv = inv.dropna(subset=["stock_futuro"])
-    inv[TARGET] = (inv["stock_futuro"] <= 0).astype(int)
+    inv["stock_minimo_futuro"] = inv.groupby("codigo")["stock"].transform(
+        _stock_minimo_futuro, horizonte_dias
+    )
+    inv = inv.dropna(subset=["stock_minimo_futuro"])
+    inv[TARGET] = (inv["stock_minimo_futuro"] <= 0).astype(int)
     inv = inv.rename(columns={"stock": "stock_actual"})
 
     prods = productos.copy()

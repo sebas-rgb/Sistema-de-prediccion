@@ -256,19 +256,19 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                    <tr class="bg-sky-100 border-b border-sky-300">
-                        <th class="px-4 py-2 text-left text-sky-700 font-semibold">Código</th>
-                        <th class="px-4 py-2 text-left text-sky-700 font-semibold">Fecha</th>
-                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Stock Actual</th>
-                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Clase</th>
-                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Consumo Prom.</th>
-                        <th class="px-4 py-2 text-center text-sky-700 font-semibold">Riesgo de agotamiento</th>
-                    </tr>
+                        <tr class="bg-sky-100 border-b border-sky-300">
+                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Código</th>
+                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Fecha</th>
+                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Stock Actual</th>
+                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Clase</th>
+                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Consumo Prom.</th>
+                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Riesgo de agotamiento</th>
+                        </tr>
                     </thead>
                     <tbody id="tableBody">
-                    <tr class="text-center text-gray-500">
-                        <td colspan="6" class="py-8">Cargando datos...</td>
-                    </tr>
+                        <tr class="text-center text-gray-500">
+                            <td colspan="6" class="py-8">Cargando datos...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -278,6 +278,32 @@
 
             <div class="text-center text-sm text-gray-500 mt-2" id="statsInfo">
             </div>
+        </div>
+    </section>
+
+    <!-- Comparación de políticas de reposición -->
+    <section class="px-6">
+        <h2 class="text-xl font-bold text-sky-700 mb-2 flex items-center gap-2">
+            <i class="fas fa-chart-line"></i> ¿Sirve anticiparse?
+        </h2>
+        <p class="text-sm text-gray-600 mb-6">
+            La misma demanda simulada bajo dos políticas de compra.
+            En <span class="font-semibold text-red-600">rojo</span>, pedir solo cuando el stock
+            llega a cero. En <span class="font-semibold text-emerald-700">verde</span>, pedir
+            además cuando el modelo anticipa el agotamiento.
+        </p>
+
+        <div class="bg-white border border-sky-200 rounded-2xl shadow-lg p-6 animate-fade-in">
+            <div id="avisoComparacion"
+                 class="hidden mb-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm"></div>
+
+            <div id="resumenComparacion" class="flex flex-wrap gap-4 mb-6"></div>
+
+            <div class="relative" style="height: 320px;">
+                <canvas id="graficoComparacion"></canvas>
+            </div>
+
+            <p id="pieComparacion" class="text-center text-xs text-gray-500 mt-4"></p>
         </div>
     </section>
 
@@ -305,6 +331,10 @@
 
 <!-- Tabla de inventario: consume /api/inventario (Spring -> FastAPI). -->
 <script th:src="@{/menu-inventario.js}" defer></script>
+
+<!-- Comparación de políticas: gráfico con Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script th:src="@{/comparacion.js}" defer></script>
 
 </body>
 </html>

@@ -34,6 +34,13 @@ public class InventarioController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
 
+    @GetMapping("/experimento")
+    public ResponseEntity<InventarioDTO.Experimento> experimento() {
+        return prediccion.experimento()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
+    }
+
     @GetMapping
     public ResponseEntity<InventarioDTO.Pagina> inventario(
             @RequestParam(required = false)

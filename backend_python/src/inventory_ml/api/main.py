@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from inventory_ml import config
 from inventory_ml.api.dependencies import get_predictor, get_predictor_opcional
+from inventory_ml.api.experimento import router as experimento_router
 from inventory_ml.api.inventario import router as inventario_router
 from inventory_ml.api.schemas import (
     BatchRequest,
@@ -188,3 +189,4 @@ def predict_batch(
 
 app.include_router(router)
 app.include_router(inventario_router)
+app.include_router(experimento_router)

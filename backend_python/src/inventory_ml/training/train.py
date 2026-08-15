@@ -49,7 +49,7 @@ from inventory_ml.features import (
 
 logger = logging.getLogger(__name__)
 
-VERSION_MODELO = "1.0.0"
+VERSION_MODELO = "2.0.0"
 SEMILLA = 42
 
 # Mientras el modelo se entrene sobre la simulacion, estos valores NO cambian.
@@ -157,6 +157,10 @@ def entrenar(db_path: Path, test_size: float = 0.2, balancear: bool = False) -> 
         "version_modelo": VERSION_MODELO,
         "algoritmo": type(pipeline.named_steps["modelo"]).__name__,
         "horizonte_dias": config.HORIZONTE_DIAS,
+        "definicion_target": (
+            f"stock llega a 0 en algun momento dentro de "
+            f"{config.HORIZONTE_DIAS} dias (minimo de la ventana)"
+        ),
         "origen_datos": ORIGEN_DATOS,
         "estado_validacion": ESTADO_VALIDACION,
         "fecha_entrenamiento": datetime.now(timezone.utc).isoformat(timespec="seconds"),

@@ -63,19 +63,13 @@ def test_batch_real_es_consistente(client):
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "TARGET CONTAMINADO: en el simulador el restock llega exactamente al "
-        "horizonte (lead_time 30 = horizonte 30), asi que una fila con stock 0 "
-        "tiene target=1 solo el 30% de las veces. El modelo aprendio que 'stock 0 "
-        "se resuelve solo' y le asigna MENOS riesgo que a stock 3. "
-        "Se arregla rediseniando el target, no la API. Cuando pase, este test "
-        "reportara XPASS: quita el xfail."
-    ),
-    strict=False,
-)
-def test_stock_cero_deberia_ser_el_maximo_riesgo(client):
-    """Un producto ya agotado no puede tener menos riesgo que uno con 3 unidades."""
+def test_stock_cero_es_el_maximo_riesgo(client):
+    """Un producto ya agotado no puede tener menos riesgo que uno con 3 unidades.
+
+    Antes fallaba: el target era `stock[t+30] <= 0`, contaminado por la
+    reposicion del simulador. Con el minimo de la ventana, estar en cero
+    implica agotamiento por definicion.
+    """
     items = [
         {**PRODUCTO, "codigo": "CERO", "stock_actual": 0},
         {**PRODUCTO, "codigo": "TRES", "stock_actual": 3},
@@ -83,3 +77,12 @@ def test_stock_cero_deberia_ser_el_maximo_riesgo(client):
     r = client.post("/api/v1/predict/batch", json={"items": items}).json()
     cero, tres = (x["probabilidad_agotamiento"] for x in r["resultados"])
     assert cero >= tres
+
+
+def test_riesgo_decrece_con_el_stock(client):
+    """A mas stock, menos riesgo, con el resto de features constante."""
+    niveles = [0, 10, 100, 1000]
+    items = [{**PRODUCTO, "codigo": str(s), "stock_actual": s} for s in niveles]
+    r = client.post("/api/v1/predict/batch", json={"items": items}).json()
+    probas = [x["probabilidad_agotamiento"] for x in r["resultados"]]
+    assert probas == sorted(probas, reverse=True), probas

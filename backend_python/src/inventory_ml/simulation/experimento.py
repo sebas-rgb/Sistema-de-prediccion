@@ -3,22 +3,19 @@
 Compara dos politicas de reposicion sobre EXACTAMENTE la misma demanda:
 
   REACTIVA   (la actual): pedir cuando el stock llega a 0.
-  PREDICTIVA (el modelo): pedir cuando P(agotamiento) >= umbral.
+  PREDICTIVA (el modelo): pedir cuando P(agotamiento) >= umbral,
+                          manteniendo la reactiva como red de seguridad.
 
 La demanda se genera UNA vez y se congela. Ambos brazos enfrentan el mismo
-flujo dia a dia, asi que cualquier diferencia en el resultado viene de la
-politica y no del azar. Sin eso, la comparacion no significa nada.
+flujo dia a dia, asi que cualquier diferencia viene de la politica y no del
+azar. Sin eso, la comparacion no significa nada.
 
-Metricas:
-  dias_agotado          dias-producto con stock en cero
-  unidades_no_servidas  demanda que llego y no se pudo atender
-  fill_rate             fraccion de la demanda total atendida
-  pedidos               cuantas ordenes se emitieron
-  stock_promedio        capital inmovilizado (el costo de anticiparse)
+El resultado se guarda en JSON para que la API lo sirva sin recalcular: la
+simulacion completa tarda ~11 s, demasiado para una peticion HTTP.
 
 Uso:
     python -m inventory_ml.simulation.experimento --umbral 0.8
-    python -m inventory_ml.simulation.experimento --umbral 0.5 --umbral 0.7 --umbral 0.9
+    python -m inventory_ml.simulation.experimento --umbral 0.5 --umbral 0.9
 """
 
 from __future__ import annotations
@@ -28,6 +25,7 @@ import json
 import logging
 import random
 import sqlite3
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -38,17 +36,25 @@ from inventory_ml.inference import Predictor
 
 logger = logging.getLogger(__name__)
 
+NOMBRE_JSON = "comparacion_politicas.json"
+
 
 def cargar_productos(db_path: Path) -> list[dict]:
     with sqlite3.connect(db_path) as conn:
         return pd.read_sql("SELECT * FROM productos", conn).to_dict("records")
 
 
+def fecha_inicio_simulacion(db_path: Path) -> date:
+    with sqlite3.connect(db_path) as conn:
+        fila = conn.execute("SELECT MIN(fecha) AS f FROM inventario").fetchone()
+    return date.fromisoformat(fila[0]) if fila and fila[0] else date(2026, 1, 1)
+
+
 def generar_demanda(productos: list[dict], dias: int, semilla: int) -> dict[str, list[int]]:
     """Demanda diaria por producto, independiente del stock disponible.
 
     Clave del experimento: se genera una sola vez. Ambas politicas ven la misma
-    secuencia, incluyendo la demanda que la politica reactiva no puede atender.
+    secuencia, incluyendo la demanda que la reactiva no puede atender.
     """
     rng = random.Random(semilla)
     demanda: dict[str, list[int]] = {}
@@ -77,27 +83,26 @@ def simular_politica(
     umbral: float = 0.8,
     red_seguridad: bool = True,
 ) -> dict:
-    """Corre la simulacion bajo una politica y devuelve metricas agregadas."""
+    """Corre la simulacion bajo una politica y devuelve metricas y serie diaria."""
     stock = {str(p["codigo"]): int(round(p["stock_inicial"])) for p in productos}
-    pendientes: dict[str, int] = {}  # codigo -> dia de llegada
+    pendientes: dict[str, int] = {}
     por_codigo = {str(p["codigo"]): p for p in productos}
-
     con_demanda = {c for c, serie in demanda.items() if sum(serie) > 0}
+
     dias_agotado = 0
     dias_agotado_utiles = 0
     no_servidas = 0
     demanda_total = 0
     pedidos = 0
     stock_acumulado = 0
+    serie_agotados: list[int] = []
 
     for dia in range(dias):
-        # llegadas
         for codigo, dia_llegada in list(pendientes.items()):
             if dia_llegada <= dia:
                 stock[codigo] += _cantidad_pedido(por_codigo[codigo])
                 del pendientes[codigo]
 
-        # demanda del dia
         for codigo, serie in demanda.items():
             d = serie[dia]
             demanda_total += d
@@ -105,19 +110,17 @@ def simular_politica(
             stock[codigo] -= atendido
             no_servidas += d - atendido
 
-        # decision de compra
         if politica == "reactiva":
             for codigo, s in stock.items():
                 if s <= 0 and codigo not in pendientes:
                     pendientes[codigo] = dia + lead_time
                     pedidos += 1
         else:
-            # Red de seguridad: si ya estas en cero, pides. Sin esto la politica
-            # predictiva abandona los productos agotados, porque el modelo
-            # aprendio que "stock 0" se resuelve solo (alguien reponia siempre).
+            # Red de seguridad: si ya estas en cero, pides igual. Sin esto la
+            # politica predictiva abandona los productos que el modelo no marca.
             if red_seguridad:
-                for codigo, s_ in stock.items():
-                    if s_ <= 0 and codigo not in pendientes:
+                for codigo, s in stock.items():
+                    if s <= 0 and codigo not in pendientes:
                         pendientes[codigo] = dia + lead_time
                         pedidos += 1
 
@@ -138,21 +141,23 @@ def simular_politica(
                         pendientes[r["codigo"]] = dia + lead_time
                         pedidos += 1
 
+        agotados_hoy = sum(1 for c, s in stock.items() if s <= 0 and c in con_demanda)
+        serie_agotados.append(agotados_hoy)
         dias_agotado += sum(1 for s in stock.values() if s <= 0)
-        dias_agotado_utiles += sum(
-            1 for c, s in stock.items() if s <= 0 and c in con_demanda
-        )
+        dias_agotado_utiles += agotados_hoy
         stock_acumulado += sum(stock.values())
 
     n = len(stock) * dias
     return {
-        "politica": politica if politica == "reactiva" else f"predictiva@{umbral}",
+        "politica": "reactiva" if politica == "reactiva" else f"predictiva@{umbral}",
+        "etiqueta": "Sin anticipación" if politica == "reactiva" else f"Con modelo ({umbral:.0%})",
         "dias_agotado": dias_agotado,
         "dias_agotado_utiles": dias_agotado_utiles,
         "unidades_no_servidas": no_servidas,
         "fill_rate": round(1 - no_servidas / max(demanda_total, 1), 4),
         "pedidos": pedidos,
         "stock_promedio": round(stock_acumulado / n, 1),
+        "serie_agotados": serie_agotados,
     }
 
 
@@ -163,15 +168,15 @@ def comparar(
     semilla: int,
     umbrales: list[float],
     red_seguridad: bool = True,
-) -> pd.DataFrame:
+) -> dict:
     productos = cargar_productos(db_path)
     demanda = generar_demanda(productos, dias, semilla)
+    inicio = fecha_inicio_simulacion(db_path)
     logger.info("Demanda congelada: %s productos x %s dias", len(productos), dias)
 
-    resultados = [
-        simular_politica(productos, demanda, dias, lead_time, "reactiva")
-    ]
+    resultados = [simular_politica(productos, demanda, dias, lead_time, "reactiva")]
     predictor = Predictor.cargar()
+    info = predictor.get_model_info()
     for u in umbrales:
         resultados.append(
             simular_politica(
@@ -180,12 +185,25 @@ def comparar(
             )
         )
 
-    tabla = pd.DataFrame(resultados).set_index("politica")
-    base = tabla.loc["reactiva", "unidades_no_servidas"]
-    tabla["mejora_servicio"] = (
-        (100 * (base - tabla["unidades_no_servidas"]) / max(base, 1)).round(1).astype(str) + "%"
-    )
-    return tabla
+    base = resultados[0]["unidades_no_servidas"]
+    for r in resultados:
+        r["mejora_servicio_pct"] = round(
+            100 * (base - r["unidades_no_servidas"]) / max(base, 1), 1
+        )
+
+    fechas = [(inicio + timedelta(days=d)).isoformat() for d in range(dias)]
+    return {
+        "generado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "dias": dias,
+        "lead_time_dias": lead_time,
+        "productos": len(productos),
+        "fecha_inicio": inicio.isoformat(),
+        "version_modelo": info["version_modelo"],
+        "origen_modelo": info["origen_datos"],
+        "estado_validacion": info["estado_validacion"],
+        "fechas": fechas,
+        "politicas": resultados,
+    }
 
 
 def main() -> None:
@@ -199,27 +217,32 @@ def main() -> None:
     parser.add_argument(
         "--sin-red",
         action="store_true",
-        help="Desactiva la red de seguridad (reproduce el resultado degenerado)",
+        help="Desactiva la red de seguridad (reproduce el comportamiento degenerado)",
     )
     parser.add_argument("--salida", type=Path, default=config.ARTIFACTS_DIR / "reports")
     args = parser.parse_args()
 
-    umbrales = args.umbral or [0.5, 0.7, 0.8, 0.9]
-    tabla = comparar(
+    umbrales = args.umbral or [0.8]
+    resultado = comparar(
         args.db, args.dias, args.lead_time, args.semilla, umbrales,
         red_seguridad=not args.sin_red,
     )
 
+    tabla = pd.DataFrame(
+        [{k: v for k, v in r.items() if k != "serie_agotados"} for r in resultado["politicas"]]
+    ).set_index("politica")
     print("\n=== Comparacion de politicas (misma demanda) ===")
     print(tabla.to_string())
     print(
-        "\ndias_agotado_utiles cuenta solo productos CON demanda (los muertos en cero"
-        "\nno son un problema). La metrica que decide es unidades_no_servidas."
+        "\ndias_agotado_utiles cuenta solo productos CON demanda."
+        "\nLa metrica que decide es unidades_no_servidas."
     )
 
     args.salida.mkdir(parents=True, exist_ok=True)
+    destino = args.salida / NOMBRE_JSON
+    destino.write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
     tabla.to_csv(args.salida / "comparacion_politicas.csv")
-    logger.info("Guardado en %s", args.salida / "comparacion_politicas.csv")
+    logger.info("Guardado en %s", destino)
 
 
 if __name__ == "__main__":

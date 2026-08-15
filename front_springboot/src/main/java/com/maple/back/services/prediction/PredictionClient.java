@@ -86,6 +86,19 @@ public class PredictionClient {
         }
     }
 
+    /** Comparacion de politicas de reposicion (resultado precalculado). */
+    public Optional<InventarioDTO.Experimento> experimento() {
+        try {
+            return Optional.ofNullable(http.get()
+                    .uri("/api/v1/experimento")
+                    .retrieve()
+                    .body(InventarioDTO.Experimento.class));
+        } catch (Exception e) {
+            log.error("Fallo al obtener el experimento desde {}", baseUrl, e);
+            return Optional.empty();
+        }
+    }
+
     /**
      * Pagina de inventario con prediccion.
      *

@@ -142,3 +142,38 @@ class InventarioResponse(BaseModel):
     origen_modelo: str | None
     estado_validacion: str | None
     items: list[InventarioItem]
+
+
+# ---------------------------------------------------------------
+# Comparacion de politicas de reposicion
+# ---------------------------------------------------------------
+
+
+class PoliticaResultado(BaseModel):
+    """Metricas de una politica de compra sobre la demanda simulada."""
+
+    politica: str
+    etiqueta: str = Field(..., description="Nombre legible para la interfaz")
+    dias_agotado: int
+    dias_agotado_utiles: int = Field(
+        ..., description="Solo productos con demanda; los muertos en cero no cuentan"
+    )
+    unidades_no_servidas: int
+    fill_rate: float = Field(..., ge=0, le=1)
+    pedidos: int
+    stock_promedio: float = Field(..., description="Capital inmovilizado promedio")
+    mejora_servicio_pct: float
+    serie_agotados: list[int] = Field(..., description="Productos agotados por dia")
+
+
+class ExperimentoResponse(BaseModel):
+    generado: str
+    dias: int
+    lead_time_dias: int
+    productos: int
+    fecha_inicio: date
+    version_modelo: str | None
+    origen_modelo: str | None
+    estado_validacion: str | None
+    fechas: list[date]
+    politicas: list[PoliticaResultado]

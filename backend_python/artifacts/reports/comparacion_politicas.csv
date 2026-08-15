@@ -1,7 +1,3 @@
-politica,dias_agotado,dias_agotado_utiles,unidades_no_servidas,fill_rate,pedidos,stock_promedio,mejora_servicio
-reactiva,27645,24825,97494,0.4374,957,31.2,0.0%
-predictiva@0.5,14315,11495,56017,0.6767,1416,38.2,42.5%
-predictiva@0.6,15077,12257,57263,0.6695,1380,37.4,41.3%
-predictiva@0.7,16047,13227,58290,0.6636,1347,37.0,40.2%
-predictiva@0.8,17047,14227,59190,0.6584,1317,36.6,39.3%
-predictiva@0.9,19375,16555,62292,0.6405,1265,35.9,36.1%
+politica,etiqueta,dias_agotado,dias_agotado_utiles,unidades_no_servidas,fill_rate,pedidos,stock_promedio,mejora_servicio_pct
+reactiva,Sin anticipación,28183,25273,83716,0.4526,980,19.2,0.0
+predictiva@0.5,Con modelo (50%),14593,11683,45050,0.7054,1430,27.9,46.2

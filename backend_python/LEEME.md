@@ -1,33 +1,61 @@
-# Python — 5 archivos
+# Cambio de target — 3 archivos Python
 
-Copia respetando la estructura: la carpeta `src/` y `tests/` de este zip se
-superponen sobre las tuyas en `backend_python/`.
+Solo Python. **No se toca nada de Spring**: endpoints, schemas, DTOs y la
+tabla siguen igual. Cambia qué significa el número, no el contrato.
 
-| Archivo | Estado |
+| Archivo | Cambio |
 |---|---|
-| `src/inventory_ml/repository.py` | **nuevo** — lee el inventario simulado |
-| `src/inventory_ml/api/inventario.py` | **nuevo** — el endpoint |
-| `src/inventory_ml/api/schemas.py` | reemplaza — 3 schemas añadidos al final |
-| `src/inventory_ml/api/main.py` | reemplaza — 2 líneas nuevas |
-| `tests/test_api_inventario.py` | **nuevo** — 9 tests |
+| `src/inventory_ml/features/dataset.py` | el target ahora es el mínimo de la ventana |
+| `src/inventory_ml/training/train.py` | versión 2.0.0 + `definicion_target` en metadata |
+| `tests/test_api_integracion.py` | el `xfail` pasa a test real + monotonía |
 
-Si prefieres editar a mano en vez de sobrescribir, en `main.py` son solo estas
-dos líneas:
+## El cambio
 
 ```python
-from inventory_ml.api.inventario import router as inventario_router   # con los imports
-app.include_router(inventario_router)                                  # al final
+# antes — una foto al final del horizonte
+stock[t + 30] <= 0
+
+# ahora — toda la ventana, incluido hoy
+min(stock[t .. t + 30]) <= 0
 ```
 
-## Verificar antes de tocar Java
+## Después de copiar
 
 ```bash
-pytest -q                                    # 38 passed, 1 xfailed
-uvicorn inventory_ml.api.main:app --reload
+python -m inventory_ml.training.train
+pytest -q                                   # 40 passed
 ```
 
-Abre `http://127.0.0.1:8000/api/v1/inventario/fechas`. Si devuelve el rango de
-tu simulación, el lado Python quedó listo.
+No hace falta volver a perfilar ni simular: la `inventario.db` sirve igual,
+solo cambia cómo se calcula la etiqueta a partir de ella.
 
-No hay que reentrenar ni volver a simular: el endpoint usa la `inventario.db` y
-el `.joblib` que ya tienes.
+Reinicia uvicorn para que cargue el artefacto nuevo (`--reload` no detecta un
+`.joblib` nuevo, solo cambios de código).
+
+## Qué esperar
+
+Riesgo por stock, resto de features constante:
+
+```
+stock    0 -> 100.0%  ALTO
+stock    9 -> 100.0%  ALTO
+stock   30 ->  98.4%  ALTO
+stock  100 ->  73.6%  ALTO
+stock  400 ->  11.1%  BAJO
+```
+
+## Dos advertencias honestas
+
+**Las métricas suben, pero no porque el modelo sea mejor.** Pasaron de 0.92 a
+0.96 de accuracy y de 0.96 a 0.99 de ROC-AUC. La causa es que el target nuevo
+es más fácil: "stock 0 hoy" implica agotamiento por definición, y esa parte el
+modelo la acierta trivialmente. No presentes esa mejora como si el modelo
+hubiera aprendido más — el target cambió, y comparar los dos números es
+comparar peras con manzanas.
+
+**Los productos muertos en cero salen 100% ALTO.** Es correcto según la
+definición (están en cero y ahí seguirán), pero no son una prioridad de
+compra: nadie los consume. Si la lista de riesgo ALTO se te llena de muertos,
+filtra por `consumo_promedio > 0` en la vista. La probabilidad responde
+"¿estará sin stock?", no "¿debería comprarlo?" — son preguntas distintas y
+conviene tenerlo claro al sustentar.
