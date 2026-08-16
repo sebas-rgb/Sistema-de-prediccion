@@ -297,6 +297,8 @@
             <div id="avisoComparacion"
                  class="hidden mb-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm"></div>
 
+            <div id="selectorUmbral" class="flex flex-wrap items-center gap-2 mb-4"></div>
+
             <div id="resumenComparacion" class="flex flex-wrap gap-4 mb-6"></div>
 
             <div class="relative" style="height: 320px;">
@@ -304,6 +306,37 @@
             </div>
 
             <p id="pieComparacion" class="text-center text-xs text-gray-500 mt-4"></p>
+        </div>
+    </section>
+
+    <!-- Asistente de IA -->
+    <section class="px-6">
+        <h2 class="text-xl font-bold text-sky-700 mb-2 flex items-center gap-2">
+            <i class="fas fa-comments"></i> Consultar al asistente
+        </h2>
+        <p class="text-sm text-gray-600 mb-6">
+            Pregunta en lenguaje natural sobre el inventario del día seleccionado.
+            El asistente analiza y prioriza; <span class="font-semibold">la decisión de
+            compra sigue siendo tuya</span>.
+        </p>
+
+        <div class="bg-white border border-sky-200 rounded-2xl shadow-lg p-6 animate-fade-in">
+            <div id="hiloChat"
+                 class="space-y-3 mb-4 max-h-96 overflow-y-auto"
+                 style="min-height: 80px;"></div>
+
+            <div id="sugerenciasChat" class="flex flex-wrap gap-2 mb-3"></div>
+
+            <div class="flex gap-2">
+                <input type="text" id="inputChat"
+                       placeholder="Escribe tu pregunta…"
+                       maxlength="1000"
+                       class="flex-1 px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
+                <button id="btnEnviarChat"
+                        class="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
     </section>
 
@@ -335,6 +368,9 @@
 <!-- Comparación de políticas: gráfico con Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script th:src="@{/comparacion.js}" defer></script>
+
+<!-- Asistente de IA -->
+<script th:src="@{/asistente.js}" defer></script>
 
 </body>
 </html>

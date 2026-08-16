@@ -78,6 +78,25 @@ public class InventarioDTO {
             @JsonAlias("serie_agotados") List<Integer> serieAgotados
     ) {}
 
+    // -----------------------------------------------------------
+    // Asistente
+    // -----------------------------------------------------------
+
+    /** Pregunta del usuario. No lleva la API key: esa vive solo en Python. */
+    public record AsistentePregunta(String pregunta, LocalDate fecha) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record AsistenteRespuesta(
+            String respuesta,
+            @JsonAlias("fecha_contexto") LocalDate fechaContexto,
+            @JsonAlias("modelo_llm") String modeloLlm,
+            @JsonAlias("version_modelo_prediccion") String versionModeloPrediccion,
+            @JsonAlias("origen_modelo") String origenModelo,
+            @JsonAlias("estado_validacion") String estadoValidacion,
+            @JsonAlias("tokens_entrada") Integer tokensEntrada,
+            @JsonAlias("tokens_salida") Integer tokensSalida
+    ) {}
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Experimento(
             String generado,

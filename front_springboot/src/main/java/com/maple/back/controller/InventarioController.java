@@ -41,6 +41,23 @@ public class InventarioController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
 
+    /**
+     * Proxy hacia el asistente. La API key del LLM vive en Python; ni Spring
+     * ni el navegador la conocen.
+     */
+    @PostMapping("/asistente")
+    public ResponseEntity<InventarioDTO.AsistenteRespuesta> asistente(
+            @RequestBody InventarioDTO.AsistentePregunta pregunta) {
+
+        if (pregunta == null || pregunta.pregunta() == null
+                || pregunta.pregunta().isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return prediccion.preguntar(pregunta)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
+    }
+
     @GetMapping
     public ResponseEntity<InventarioDTO.Pagina> inventario(
             @RequestParam(required = false)

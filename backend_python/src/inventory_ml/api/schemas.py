@@ -177,3 +177,36 @@ class ExperimentoResponse(BaseModel):
     estado_validacion: str | None
     fechas: list[date]
     politicas: list[PoliticaResultado]
+
+
+# ---------------------------------------------------------------
+# Asistente
+# ---------------------------------------------------------------
+
+
+class AsistenteRequest(BaseModel):
+    """Pregunta en lenguaje natural sobre el inventario."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"pregunta": "¿Que productos debo priorizar esta semana?"}
+        }
+    )
+
+    pregunta: str = Field(
+        ..., min_length=3, max_length=1000, description="Pregunta del usuario"
+    )
+    fecha: date | None = Field(
+        None, description="Fecha del inventario a analizar; por defecto la ultima"
+    )
+
+
+class AsistenteResponse(BaseModel):
+    respuesta: str
+    fecha_contexto: date = Field(..., description="Fecha del inventario analizado")
+    modelo_llm: str = Field(..., description="Modelo de lenguaje que respondio")
+    version_modelo_prediccion: str | None
+    origen_modelo: str | None
+    estado_validacion: str | None
+    tokens_entrada: int | None = None
+    tokens_salida: int | None = None

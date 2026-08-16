@@ -53,7 +53,7 @@ public class PredictionClient {
     private static SimpleClientHttpRequestFactory factoriaConTimeouts() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
-        factory.setReadTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(45));  // el asistente tarda mas
         return factory;
     }
 
@@ -82,6 +82,25 @@ public class PredictionClient {
                     .body(InventarioDTO.RangoFechas.class));
         } catch (Exception e) {
             log.error("Fallo al obtener el rango de fechas desde {}", baseUrl, e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Pregunta al asistente. Timeout mas largo: un LLM tarda mas que una
+     * consulta a la base de datos.
+     */
+    public Optional<InventarioDTO.AsistenteRespuesta> preguntar(
+            InventarioDTO.AsistentePregunta pregunta) {
+        try {
+            return Optional.ofNullable(http.post()
+                    .uri("/api/v1/asistente")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(pregunta)
+                    .retrieve()
+                    .body(InventarioDTO.AsistenteRespuesta.class));
+        } catch (Exception e) {
+            log.error("Fallo al consultar el asistente en {}", baseUrl, e);
             return Optional.empty();
         }
     }

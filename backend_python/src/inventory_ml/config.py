@@ -17,6 +17,19 @@ PROJECT_ROOT = Path(
     os.environ.get("INVENTORY_ML_ROOT", Path(__file__).resolve().parents[2])
 )
 
+# ---------------------------------------------------------------
+# Carga del archivo .env
+# ---------------------------------------------------------------
+# Las variables ya definidas en el entorno GANAN sobre el archivo: asi se puede
+# sobrescribir puntualmente sin editar el .env. Si python-dotenv no esta
+# instalado, todo sigue funcionando leyendo solo el entorno.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+except ImportError:  # pragma: no cover
+    pass
+
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 DB_PATH = Path(os.environ.get("DB_PATH", DATA_DIR / "inventario.db"))
 ARTIFACTS_DIR = Path(os.environ.get("ARTIFACTS_DIR", PROJECT_ROOT / "artifacts"))
@@ -56,6 +69,23 @@ def nivel_riesgo(probabilidad: float) -> str:
 
 
 # ---------------------------------------------------------------
-# Para la fase siguiente (API)
+# API
 # ---------------------------------------------------------------
 MAX_BATCH_SIZE = int(os.environ.get("MAX_BATCH_SIZE", 500))
+
+# ---------------------------------------------------------------
+# Asistente LLM
+# ---------------------------------------------------------------
+# La clave NUNCA se escribe en codigo ni se envia al navegador.
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
+# Los nombres de modelo cambian seguido; se elige por entorno, no en codigo.
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-5.6-luna")
+LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", 30))
+LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", 800))
+# Cuantos productos de mayor riesgo se incluyen en el contexto.
+LLM_TOP_RIESGO = int(os.environ.get("LLM_TOP_RIESGO", 15))
+
+
+def llm_configurado() -> bool:
+    return bool(LLM_API_KEY)
