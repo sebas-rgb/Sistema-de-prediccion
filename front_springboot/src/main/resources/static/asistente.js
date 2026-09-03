@@ -10,17 +10,29 @@ const SUGERENCIAS = [
   "¿Hay evidencia de que el modelo mejore el servicio? Dame cifras.",
 ];
 
+// El modelo responde en markdown (negritas, listas, tablas). Lo del usuario
+// va como texto plano; lo del modelo se pasa por marked + DOMPurify.
 function burbuja(texto, esUsuario) {
   const div = document.createElement("div");
   div.className = esUsuario ? "flex justify-end" : "flex justify-start";
-  div.innerHTML =
-    '<div class="max-w-[85%] px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ' +
+
+  const cuerpo = document.createElement("div");
+  cuerpo.className =
+    "max-w-[85%] px-4 py-2 rounded-2xl text-sm " +
     (esUsuario
-      ? "bg-sky-600 text-white rounded-br-sm"
-      : "bg-gray-100 text-gray-800 rounded-bl-sm") +
-    '">' +
-    texto.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") +
-    "</div>";
+      ? "bg-sky-600 text-white rounded-br-sm whitespace-pre-wrap"
+      : "bg-gray-100 text-gray-800 rounded-bl-sm md burbuja-md");
+
+  if (esUsuario || !window.marked || !window.DOMPurify) {
+    cuerpo.textContent = texto;                    // sin librerias: texto plano
+    if (!esUsuario) cuerpo.classList.add("whitespace-pre-wrap");
+  } else {
+    cuerpo.innerHTML = DOMPurify.sanitize(
+      marked.parse(texto, { breaks: true, gfm: true })
+    );
+  }
+
+  div.appendChild(cuerpo);
   return div;
 }
 

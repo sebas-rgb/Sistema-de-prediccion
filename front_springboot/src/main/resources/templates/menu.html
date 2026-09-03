@@ -16,6 +16,50 @@
             --al-blue-pale:  #d0eaf8;
             --al-blue-xpale: #e8f4fd;
         }
+
+        /* Markdown de las respuestas del asistente */
+        .md > *:first-child { margin-top: 0; }
+        .md > *:last-child  { margin-bottom: 0; }
+        .md p, .md ul, .md ol, .md table { margin: 0.5rem 0; }
+        .md ul { list-style: disc;    padding-left: 1.25rem; }
+        .md ol { list-style: decimal; padding-left: 1.25rem; }
+        .md li { margin: 0.15rem 0; }
+        .md h1, .md h2, .md h3, .md h4 {
+            font-weight: 700; color: #0369a1; margin: 0.75rem 0 0.35rem;
+        }
+        .md h1 { font-size: 1.05rem; }
+        .md h2 { font-size: 1rem; }
+        .md h3, .md h4 { font-size: 0.9rem; }
+        .md strong { font-weight: 700; color: #0c4a6e; }
+        .md code {
+            background: #e0f2fe; color: #075985;
+            padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.85em;
+        }
+        .md pre {
+            background: #0f172a; color: #e2e8f0; padding: 0.75rem;
+            border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0;
+        }
+        .md pre code { background: none; color: inherit; padding: 0; }
+        .md table {
+            border-collapse: collapse; width: 100%;
+            font-size: 0.8rem; background: #fff;
+            border-radius: 0.5rem; overflow: hidden;
+            box-shadow: 0 0 0 1px #bae6fd;
+        }
+        .md th, .md td {
+            border-bottom: 1px solid #e0f2fe;
+            padding: 0.35rem 0.6rem; text-align: left;
+        }
+        .md th { background: #f0f9ff; color: #0369a1; font-weight: 600; white-space: nowrap; }
+        .md tr:last-child td { border-bottom: none; }
+        .md blockquote {
+            border-left: 3px solid #7dd3fc; padding-left: 0.75rem;
+            color: #475569; margin: 0.5rem 0;
+        }
+        .md hr { border: none; border-top: 1px solid #e0f2fe; margin: 0.75rem 0; }
+        .md a { color: #0284c7; text-decoration: underline; }
+        /* la tabla puede ser mas ancha que la burbuja */
+        .burbuja-md { overflow-x: auto; }
     </style>
 </head>
 
@@ -369,7 +413,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script th:src="@{/comparacion.js}" defer></script>
 
-<!-- Asistente de IA -->
+<!-- Asistente de IA: marked renderiza el markdown del modelo, DOMPurify lo limpia -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script th:src="@{/asistente.js}" defer></script>
 
 </body>
