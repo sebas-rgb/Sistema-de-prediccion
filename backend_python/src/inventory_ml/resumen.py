@@ -89,7 +89,7 @@ def resumen_a_texto(resumen: dict) -> str:
         + ", ".join(f"{k}={v}" for k, v in resumen["conteo_por_clase"].items()),
         "",
         f"Top {len(resumen['criticos'])} productos de mayor riesgo (solo con demanda):",
-        "codigo | stock | clase | consumo_promedio | probabilidad | nivel",
+        "codigo | stock | clase | consumo_por_movimiento | probabilidad | nivel",
     ]
     for f in resumen["criticos"]:
         lineas.append(

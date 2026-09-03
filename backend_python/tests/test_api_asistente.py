@@ -88,11 +88,19 @@ def _simular_llm(monkeypatch, respuesta=None, status_code=200):
     las peticiones del propio test y nunca llegan a la aplicacion.
     """
     capturado: dict = {}
-    payload = respuesta if respuesta is not None else RESPUESTA_LLM
+    # Una lista simula un agente encadenando vueltas: cada post consume la
+    # siguiente respuesta y la ultima se repite si el bucle pidiera mas.
+    guion = respuesta if respuesta is not None else RESPUESTA_LLM
+    pendientes = list(guion) if isinstance(guion, list) else [guion]
+    capturado["cuerpos"] = []
+
+    def siguiente():
+        return pendientes.pop(0) if len(pendientes) > 1 else pendientes[0]
 
     class RespuestaFalsa:
-        def __init__(self):
+        def __init__(self, payload):
             self.status_code = status_code
+            self.payload = payload
             self.text = json.dumps(payload)
 
         def raise_for_status(self):
@@ -102,7 +110,7 @@ def _simular_llm(monkeypatch, respuesta=None, status_code=200):
                 )
 
         def json(self):
-            return payload
+            return self.payload
 
     class ClienteFalso:
         def __init__(self, *a, **k):
@@ -118,7 +126,8 @@ def _simular_llm(monkeypatch, respuesta=None, status_code=200):
             capturado["url"] = url
             capturado["headers"] = headers or {}
             capturado["json"] = json or {}
-            return RespuestaFalsa()
+            capturado["cuerpos"].append(json or {})
+            return RespuestaFalsa(siguiente())
 
     class HttpxFalso:
         Client = ClienteFalso
@@ -207,3 +216,140 @@ def test_resumen_excluye_productos_sin_demanda_de_los_criticos(client, monkeypat
     contexto = capturado["json"]["messages"][1]["content"]
     seccion_criticos = contexto.split("Top ")[1]
     assert "Muerto" not in seccion_criticos
+
+
+# ---------------------------------------------------------------
+# Bucle de agente: el modelo pide herramientas y las usa
+# ---------------------------------------------------------------
+
+
+def _llamada(nombre, argumentos, id_="call_1"):
+    return {
+        "model": "modelo-de-prueba",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": id_,
+                            "type": "function",
+                            "function": {"name": nombre, "arguments": json.dumps(argumentos)},
+                        }
+                    ],
+                }
+            }
+        ],
+        "usage": {"prompt_tokens": 500, "completion_tokens": 20},
+    }
+
+
+def test_el_agente_ejecuta_la_herramienta_y_responde(client, monkeypatch):
+    """Primera vuelta: pide la herramienta. Segunda: responde con el resultado."""
+    capturado = _simular_llm(
+        monkeypatch,
+        [
+            _llamada("consultar_producto", {"codigo": "P0"}),
+            {
+                "model": "modelo-de-prueba",
+                "choices": [{"message": {"content": "P0 esta en cero y es clase Alta."}}],
+                "usage": {"prompt_tokens": 700, "completion_tokens": 30},
+            },
+        ],
+    )
+
+    r = client.post("/api/v1/asistente", json={"pregunta": "¿Como esta el P0?"})
+    assert r.status_code == 200
+    cuerpo = r.json()
+
+    assert cuerpo["herramientas_usadas"] == ["consultar_producto"]
+    assert cuerpo["respuesta"] == "P0 esta en cero y es clase Alta."
+    # Los tokens se acumulan a lo largo de todas las vueltas, no solo la ultima.
+    assert cuerpo["tokens_entrada"] == 1200
+
+    # La segunda peticion debe llevar el resultado de la herramienta como
+    # mensaje 'tool'; sin eso el modelo responderia a ciegas.
+    mensajes = capturado["cuerpos"][1]["messages"]
+    tool = [m for m in mensajes if m.get("role") == "tool"]
+    assert len(tool) == 1
+    assert tool[0]["tool_call_id"] == "call_1"
+    assert "P0" in tool[0]["content"]
+
+
+def test_el_escenario_hipotetico_cambia_la_probabilidad(client, monkeypatch):
+    """La herramienta contrafactual devuelve las dos probabilidades."""
+    capturado = _simular_llm(
+        monkeypatch,
+        [
+            _llamada("simular_escenario", {"codigo": "P0", "niveles_stock": [50, 500]}),
+            {
+                "model": "modelo-de-prueba",
+                "choices": [{"message": {"content": "Con 500 unidades el riesgo baja."}}],
+            },
+        ],
+    )
+
+    r = client.post("/api/v1/asistente", json={"pregunta": "¿Y si compro 500 de P0?"})
+    assert r.status_code == 200
+    assert r.json()["herramientas_usadas"] == ["simular_escenario"]
+
+    resultado = json.loads(
+        [m for m in capturado["cuerpos"][1]["messages"] if m.get("role") == "tool"][0]["content"]
+    )
+    assert resultado["stock_real"] == 0
+    assert [e["stock"] for e in resultado["escenarios"]] == [50, 500]
+    # Mas stock nunca puede aumentar el riesgo de agotarse.
+    probabilidades = [resultado["probabilidad_real"]] + [
+        e["probabilidad"] for e in resultado["escenarios"]
+    ]
+    assert probabilidades == sorted(probabilidades, reverse=True)
+
+
+def test_herramienta_inexistente_no_rompe_la_conversacion(client, monkeypatch):
+    """Un nombre inventado vuelve como error en texto, no como excepcion."""
+    capturado = _simular_llm(
+        monkeypatch,
+        [
+            _llamada("borrar_inventario", {}),
+            {
+                "model": "modelo-de-prueba",
+                "choices": [{"message": {"content": "No puedo hacer eso."}}],
+            },
+        ],
+    )
+
+    r = client.post("/api/v1/asistente", json={"pregunta": "Borra todo"})
+    assert r.status_code == 200
+
+    resultado = json.loads(
+        [m for m in capturado["cuerpos"][1]["messages"] if m.get("role") == "tool"][0]["content"]
+    )
+    assert "no existe" in resultado["error"]
+
+
+def test_sin_herramientas_responde_en_una_vuelta(client, monkeypatch):
+    """El resumen inyectado basta para las preguntas comunes: no gasta vueltas."""
+    capturado = _simular_llm(monkeypatch)
+    r = client.post("/api/v1/asistente", json={"pregunta": "¿Que priorizo?"})
+    assert r.status_code == 200
+    assert r.json()["herramientas_usadas"] == []
+    assert len(capturado["cuerpos"]) == 1
+
+
+def test_el_bucle_termina_aunque_el_modelo_insista(client, monkeypatch):
+    """Un modelo que solo pide herramientas no puede colgar la peticion."""
+    from inventory_ml import herramientas
+
+    capturado = _simular_llm(monkeypatch, [_llamada("comparar_politicas", {})])
+    r = client.post("/api/v1/asistente", json={"pregunta": "¿Sirve el modelo?"})
+
+    # Se agotan las vueltas y se fuerza una final instruida a concluir.
+    assert len(capturado["cuerpos"]) == herramientas.MAX_ITERACIONES + 1
+    # Las herramientas SIGUEN presentes: quitarlas provoca un 400 del proveedor
+    # cuando el historial venia encadenando llamadas.
+    assert "tools" in capturado["cuerpos"][-1]
+    assert "no puedes usar mas herramientas" in capturado["cuerpos"][-1]["messages"][-1]["content"]
+    # El guion nunca entrega texto, asi que el endpoint lo reporta como 503
+    # en vez de devolver una respuesta vacia.
+    assert r.status_code == 503

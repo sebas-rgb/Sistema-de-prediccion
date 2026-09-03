@@ -82,9 +82,15 @@ LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 # Los nombres de modelo cambian seguido; se elige por entorno, no en codigo.
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-5.6-luna")
 LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", 30))
-LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", 800))
-# Cuantos productos de mayor riesgo se incluyen en el contexto.
-LLM_TOP_RIESGO = int(os.environ.get("LLM_TOP_RIESGO", 15))
+# 800 truncaba las respuestas: los modelos de razonamiento (gpt-oss, o-series)
+# gastan tokens de razonamiento contra este mismo presupuesto. Subirlo mas
+# tampoco es gratis: Groq cuenta prompt + max_tokens contra el limite por
+# minuto, asi que un techo alto provoca 429 antes de generar nada.
+LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", 1200))
+# Cuantos productos de mayor riesgo se incluyen en el contexto. El resumen se
+# reenvia COMPLETO en cada vuelta del agente, asi que cada fila se paga
+# tantas veces como herramientas invoque.
+LLM_TOP_RIESGO = int(os.environ.get("LLM_TOP_RIESGO", 10))
 
 
 def llm_configurado() -> bool:

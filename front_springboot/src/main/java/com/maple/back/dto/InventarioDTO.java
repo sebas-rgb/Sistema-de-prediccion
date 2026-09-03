@@ -93,6 +93,7 @@ public class InventarioDTO {
             @JsonAlias("version_modelo_prediccion") String versionModeloPrediccion,
             @JsonAlias("origen_modelo") String origenModelo,
             @JsonAlias("estado_validacion") String estadoValidacion,
+            @JsonAlias("herramientas_usadas") List<String> herramientasUsadas,
             @JsonAlias("tokens_entrada") Integer tokensEntrada,
             @JsonAlias("tokens_salida") Integer tokensSalida
     ) {}

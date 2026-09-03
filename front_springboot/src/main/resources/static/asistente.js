@@ -2,10 +2,12 @@
 // El navegador nunca ve la API key: va a /api/inventario/asistente (Spring),
 // que reenvía a FastAPI, que es quien tiene la clave.
 
+// Las dos ultimas obligan al agente a usar herramientas: no se pueden
+// responder con el resumen inyectado.
 const SUGERENCIAS = [
   "¿Qué productos debo priorizar esta semana?",
-  "¿Hay algo raro o contradictorio en estos datos?",
-  "Resume el estado del inventario en 3 puntos",
+  "¿Cuánto stock necesita el 611270 para dejar de ser riesgo alto?",
+  "¿Hay evidencia de que el modelo mejore el servicio? Dame cifras.",
 ];
 
 function burbuja(texto, esUsuario) {
@@ -74,6 +76,21 @@ async function enviarPregunta(texto) {
         " (" + data.origenModelo + ", no validado)" +
         (data.tokensEntrada ? " · " + (data.tokensEntrada + data.tokensSalida) + " tokens" : "");
       hilo.appendChild(pie);
+
+      // Evidencia visible de que es un agente: que consulto por su cuenta.
+      if (data.herramientasUsadas && data.herramientasUsadas.length) {
+        const usadas = document.createElement("div");
+        usadas.className = "flex flex-wrap gap-1 px-2 mt-1";
+        usadas.innerHTML = data.herramientasUsadas
+          .map(
+            (h) =>
+              '<span class="px-2 py-0.5 text-[10px] rounded-full bg-violet-50 ' +
+              'text-violet-700 border border-violet-200">' +
+              '<i class="fas fa-wrench mr-1"></i>' + h + "</span>"
+          )
+          .join("");
+        hilo.appendChild(usadas);
+      }
     }
   } catch (err) {
     document.getElementById("burbujaPensando")?.remove();

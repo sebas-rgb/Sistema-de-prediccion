@@ -208,5 +208,9 @@ class AsistenteResponse(BaseModel):
     version_modelo_prediccion: str | None
     origen_modelo: str | None
     estado_validacion: str | None
+    herramientas_usadas: list[str] = Field(
+        default_factory=list,
+        description="Herramientas que el agente invoco, en orden. Vacio si respondio directo",
+    )
     tokens_entrada: int | None = None
     tokens_salida: int | None = None
