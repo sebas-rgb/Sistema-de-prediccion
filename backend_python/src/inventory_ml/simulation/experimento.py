@@ -96,6 +96,8 @@ def simular_politica(
     pedidos = 0
     stock_acumulado = 0
     serie_agotados: list[int] = []
+    serie_stock: list[int] = []
+    serie_vendido: list[int] = []
 
     for dia in range(dias):
         for codigo, dia_llegada in list(pendientes.items()):
@@ -103,11 +105,13 @@ def simular_politica(
                 stock[codigo] += _cantidad_pedido(por_codigo[codigo])
                 del pendientes[codigo]
 
+        vendido_hoy = 0
         for codigo, serie in demanda.items():
             d = serie[dia]
             demanda_total += d
             atendido = min(d, stock[codigo])
             stock[codigo] -= atendido
+            vendido_hoy += atendido
             no_servidas += d - atendido
 
         if politica == "reactiva":
@@ -143,6 +147,8 @@ def simular_politica(
 
         agotados_hoy = sum(1 for c, s in stock.items() if s <= 0 and c in con_demanda)
         serie_agotados.append(agotados_hoy)
+        serie_stock.append(sum(stock.values()))
+        serie_vendido.append(vendido_hoy)
         dias_agotado += sum(1 for s in stock.values() if s <= 0)
         dias_agotado_utiles += agotados_hoy
         stock_acumulado += sum(stock.values())
@@ -158,6 +164,8 @@ def simular_politica(
         "pedidos": pedidos,
         "stock_promedio": round(stock_acumulado / n, 1),
         "serie_agotados": serie_agotados,
+        "serie_stock": serie_stock,
+        "serie_vendido": serie_vendido,
     }
 
 
@@ -229,7 +237,10 @@ def main() -> None:
     )
 
     tabla = pd.DataFrame(
-        [{k: v for k, v in r.items() if k != "serie_agotados"} for r in resultado["politicas"]]
+        [
+            {k: v for k, v in r.items() if not k.startswith("serie_")}
+            for r in resultado["politicas"]
+        ]
     ).set_index("politica")
     print("\n=== Comparacion de politicas (misma demanda) ===")
     print(tabla.to_string())

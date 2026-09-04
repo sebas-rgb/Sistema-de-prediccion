@@ -164,6 +164,8 @@ class PoliticaResultado(BaseModel):
     stock_promedio: float = Field(..., description="Capital inmovilizado promedio")
     mejora_servicio_pct: float
     serie_agotados: list[int] = Field(..., description="Productos agotados por dia")
+    serie_stock: list[int] = Field(..., description="Unidades en stock al cierre de cada dia")
+    serie_vendido: list[int] = Field(..., description="Unidades entregadas cada dia")
 
 
 class ExperimentoResponse(BaseModel):

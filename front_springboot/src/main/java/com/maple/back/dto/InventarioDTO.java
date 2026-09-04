@@ -75,7 +75,9 @@ public class InventarioDTO {
             Integer pedidos,
             @JsonAlias("stock_promedio") Double stockPromedio,
             @JsonAlias("mejora_servicio_pct") Double mejoraServicioPct,
-            @JsonAlias("serie_agotados") List<Integer> serieAgotados
+            @JsonAlias("serie_agotados") List<Integer> serieAgotados,
+            @JsonAlias("serie_stock") List<Integer> serieStock,
+            @JsonAlias("serie_vendido") List<Integer> serieVendido
     ) {}
 
     // -----------------------------------------------------------

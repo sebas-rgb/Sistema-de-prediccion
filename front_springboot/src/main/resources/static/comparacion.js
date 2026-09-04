@@ -40,29 +40,40 @@ function pintarGrafico(data) {
 
   if (graficoComparacion) graficoComparacion.destroy();
 
+  // Stock disponible (izquierda) contra unidades entregadas (derecha). Dos ejes
+  // porque el stock total ronda las 8.000 unidades y lo vendido en un dia, 300:
+  // en un solo eje la linea de ventas quedaria pegada al cero.
+  const stock = (p, color) => ({
+    label: "Stock · " + p.etiqueta,
+    data: p.serieStock,
+    borderColor: color,
+    backgroundColor: color + "18",
+    fill: true,
+    pointRadius: 0,
+    borderWidth: 2,
+    yAxisID: "y",
+  });
+
+  const vendido = (p, color) => ({
+    label: "Vendido · " + p.etiqueta,
+    data: p.serieVendido,
+    borderColor: color,
+    borderDash: [4, 3],
+    fill: false,
+    pointRadius: 0,
+    borderWidth: 1.5,
+    yAxisID: "yVendido",
+  });
+
   graficoComparacion = new Chart(ctx, {
     type: "line",
     data: {
       labels: data.fechas,
       datasets: [
-        {
-          label: reactiva.etiqueta,
-          data: reactiva.serieAgotados,
-          borderColor: COLOR_REACTIVA,
-          backgroundColor: COLOR_REACTIVA + "20",
-          fill: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: predictiva.etiqueta,
-          data: predictiva.serieAgotados,
-          borderColor: COLOR_PREDICTIVA,
-          backgroundColor: COLOR_PREDICTIVA + "20",
-          fill: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
+        stock(reactiva, COLOR_REACTIVA),
+        stock(predictiva, COLOR_PREDICTIVA),
+        vendido(reactiva, COLOR_REACTIVA),
+        vendido(predictiva, COLOR_PREDICTIVA),
       ],
     },
     options: {
@@ -73,14 +84,22 @@ function pintarGrafico(data) {
         legend: { position: "top" },
         tooltip: {
           callbacks: {
-            label: (c) => c.dataset.label + ": " + c.parsed.y + " productos sin stock",
+            label: (c) =>
+              c.dataset.label + ": " + c.parsed.y.toLocaleString() + " unidades",
           },
         },
       },
       scales: {
         y: {
           beginAtZero: true,
-          title: { display: true, text: "Productos sin stock" },
+          position: "left",
+          title: { display: true, text: "Unidades en stock" },
+        },
+        yVendido: {
+          beginAtZero: true,
+          position: "right",
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: "Unidades vendidas por día" },
         },
         x: {
           ticks: { maxTicksLimit: 12 },
