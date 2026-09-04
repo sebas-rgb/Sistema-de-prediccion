@@ -16,6 +16,7 @@ simulacion completa tarda ~11 s, demasiado para una peticion HTTP.
 Uso:
     python -m inventory_ml.simulation.experimento --umbral 0.8
     python -m inventory_ml.simulation.experimento --umbral 0.5 --umbral 0.9
+    python -m inventory_ml.simulation.experimento --modelo logistica
 """
 
 from __future__ import annotations
@@ -37,6 +38,13 @@ from inventory_ml.inference import Predictor
 logger = logging.getLogger(__name__)
 
 NOMBRE_JSON = "comparacion_politicas.json"
+
+# Como se llama cada modelo en la interfaz. La clave es el slug que va en el
+# id de la politica; el valor, lo que lee el usuario.
+NOMBRES_MODELO = {
+    "bosque": "bosque aleatorio",
+    "logistica": "regresión logística",
+}
 
 
 def cargar_productos(db_path: Path) -> list[dict]:
@@ -82,6 +90,7 @@ def simular_politica(
     predictor: Predictor | None = None,
     umbral: float = 0.8,
     red_seguridad: bool = True,
+    nombre_modelo: str = "bosque",
 ) -> dict:
     """Corre la simulacion bajo una politica y devuelve metricas y serie diaria."""
     stock = {str(p["codigo"]): int(round(p["stock_inicial"])) for p in productos}
@@ -155,8 +164,14 @@ def simular_politica(
 
     n = len(stock) * dias
     return {
-        "politica": "reactiva" if politica == "reactiva" else f"predictiva@{umbral}",
-        "etiqueta": "Sin anticipación" if politica == "reactiva" else f"Con modelo ({umbral:.0%})",
+        "politica": (
+            "reactiva" if politica == "reactiva" else f"predictiva@{nombre_modelo}@{umbral}"
+        ),
+        "etiqueta": (
+            "Sin anticipación"
+            if politica == "reactiva"
+            else f"Con {NOMBRES_MODELO.get(nombre_modelo, nombre_modelo)} ({umbral:.0%})"
+        ),
         "dias_agotado": dias_agotado,
         "dias_agotado_utiles": dias_agotado_utiles,
         "unidades_no_servidas": no_servidas,
@@ -169,6 +184,26 @@ def simular_politica(
     }
 
 
+def cargar_modelos(nombres: list[str]) -> list[tuple[str, Predictor]]:
+    """Carga un Predictor por algoritmo. El bosque usa las rutas de config."""
+    modelos = []
+    for nombre in nombres:
+        if nombre == "bosque":
+            modelos.append((nombre, Predictor.cargar()))
+            continue
+        base = config.MODELS_DIR / f"stockout_{nombre}_v1"
+        modelos.append(
+            (
+                nombre,
+                Predictor.cargar(
+                    base.with_suffix(".joblib"),
+                    base.with_suffix(".metadata.json"),
+                ),
+            )
+        )
+    return modelos
+
+
 def comparar(
     db_path: Path,
     dias: int,
@@ -176,6 +211,7 @@ def comparar(
     semilla: int,
     umbrales: list[float],
     red_seguridad: bool = True,
+    nombres_modelo: list[str] | None = None,
 ) -> dict:
     productos = cargar_productos(db_path)
     demanda = generar_demanda(productos, dias, semilla)
@@ -183,15 +219,17 @@ def comparar(
     logger.info("Demanda congelada: %s productos x %s dias", len(productos), dias)
 
     resultados = [simular_politica(productos, demanda, dias, lead_time, "reactiva")]
-    predictor = Predictor.cargar()
-    info = predictor.get_model_info()
-    for u in umbrales:
-        resultados.append(
-            simular_politica(
-                productos, demanda, dias, lead_time, "predictiva", predictor, u,
-                red_seguridad=red_seguridad,
+    modelos = cargar_modelos(nombres_modelo or ["bosque"])
+    # La cabecera describe el modelo que sirve la API, no los de comparacion.
+    info = modelos[0][1].get_model_info()
+    for nombre, predictor in modelos:
+        for u in umbrales:
+            resultados.append(
+                simular_politica(
+                    productos, demanda, dias, lead_time, "predictiva", predictor, u,
+                    red_seguridad=red_seguridad, nombre_modelo=nombre,
+                )
             )
-        )
 
     base = resultados[0]["unidades_no_servidas"]
     for r in resultados:
@@ -223,6 +261,13 @@ def main() -> None:
     parser.add_argument("--semilla", type=int, default=777)
     parser.add_argument("--umbral", type=float, action="append", default=None)
     parser.add_argument(
+        "--modelo",
+        action="append",
+        choices=list(NOMBRES_MODELO),
+        default=None,
+        help="Algoritmos a comparar (repetible). Por defecto: bosque y logistica",
+    )
+    parser.add_argument(
         "--sin-red",
         action="store_true",
         help="Desactiva la red de seguridad (reproduce el comportamiento degenerado)",
@@ -234,6 +279,7 @@ def main() -> None:
     resultado = comparar(
         args.db, args.dias, args.lead_time, args.semilla, umbrales,
         red_seguridad=not args.sin_red,
+        nombres_modelo=args.modelo or ["bosque", "logistica"],
     )
 
     tabla = pd.DataFrame(

@@ -27,6 +27,7 @@ import joblib
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -34,7 +35,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 from inventory_ml import config
 from inventory_ml.features import (
@@ -55,6 +56,21 @@ SEMILLA = 42
 # Mientras el modelo se entrene sobre la simulacion, estos valores NO cambian.
 ORIGEN_DATOS = "SIMULADO"
 ESTADO_VALIDACION = "NO_VALIDADO_CON_DATOS_REALES"
+
+# "rf" es el modelo de produccion y conserva las rutas de config. "logistica"
+# se guarda aparte: sirve de linea base interpretable en el experimento y no
+# debe pisar el artefacto que sirve la API.
+ALGORITMOS = ("rf", "logistica")
+
+
+def rutas_artefacto(algoritmo: str) -> tuple[Path, Path]:
+    if algoritmo == "rf":
+        return config.MODEL_PATH, config.MODEL_METADATA_PATH
+    nombre = f"stockout_{algoritmo}_v1"
+    return (
+        config.MODELS_DIR / f"{nombre}.joblib",
+        config.MODELS_DIR / f"{nombre}.metadata.json",
+    )
 
 
 def cargar_desde_sqlite(db_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -77,11 +93,11 @@ def split_temporal(
     return train, test, corte
 
 
-def construir_pipeline(balancear: bool = False) -> Pipeline:
+def construir_pipeline(balancear: bool = False, algoritmo: str = "rf") -> Pipeline:
     """Encoding + modelo en un solo artefacto.
 
-    Hiperparametros identicos a los de `riesgo_agotamiento.py` (el script
-    original): no se cambia el algoritmo como parte de esta refactorizacion.
+    Hiperparametros del bosque identicos a los de `riesgo_agotamiento.py` (el
+    script original): no se cambia el algoritmo de produccion.
 
     handle_unknown='use_encoded_value' evita que una clase nueva reviente la
     inferencia en produccion; queda marcada como -1.
@@ -101,6 +117,25 @@ def construir_pipeline(balancear: bool = False) -> Pipeline:
         remainder="passthrough",
         verbose_feature_names_out=False,
     )
+    if algoritmo == "logistica":
+        # Escalar es obligatorio aqui y no en el bosque: stock_actual llega a
+        # miles y frecuencia_movimiento vive en [0,1]. Sin StandardScaler el
+        # descenso no converge y los coeficientes no son comparables.
+        return Pipeline(
+            [
+                ("preproceso", preprocesador),
+                ("escalado", StandardScaler()),
+                (
+                    "modelo",
+                    LogisticRegression(
+                        max_iter=1000,
+                        class_weight="balanced" if balancear else None,
+                        random_state=SEMILLA,
+                    ),
+                ),
+            ]
+        )
+
     modelo = RandomForestClassifier(
         n_estimators=200,
         max_depth=12,
@@ -111,7 +146,12 @@ def construir_pipeline(balancear: bool = False) -> Pipeline:
     return Pipeline([("preproceso", preprocesador), ("modelo", modelo)])
 
 
-def entrenar(db_path: Path, test_size: float = 0.2, balancear: bool = False) -> dict:
+def entrenar(
+    db_path: Path,
+    test_size: float = 0.2,
+    balancear: bool = False,
+    algoritmo: str = "rf",
+) -> dict:
     inventario, productos = cargar_desde_sqlite(db_path)
     dataset = construir_dataset(inventario, productos, config.HORIZONTE_DIAS)
     logger.info("Dataset construido: %s filas", len(dataset))
@@ -126,7 +166,7 @@ def entrenar(db_path: Path, test_size: float = 0.2, balancear: bool = False) -> 
     X_test = preparar_features(test)
     y_test = test[TARGET]
 
-    pipeline = construir_pipeline(balancear=balancear)
+    pipeline = construir_pipeline(balancear=balancear, algoritmo=algoritmo)
     pipeline.fit(X_train, y_train)
 
     # Verificacion explicita de la clase positiva (no asumir [:, 1])
@@ -150,8 +190,9 @@ def entrenar(db_path: Path, test_size: float = 0.2, balancear: bool = False) -> 
     print(classification_report(y_test, pred, zero_division=0))
     print(confusion_matrix(y_test, pred))
 
+    model_path, metadata_path = rutas_artefacto(algoritmo)
     config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pipeline, config.MODEL_PATH)
+    joblib.dump(pipeline, model_path)
 
     metadata = {
         "version_modelo": VERSION_MODELO,
@@ -175,11 +216,11 @@ def entrenar(db_path: Path, test_size: float = 0.2, balancear: bool = False) -> 
         "class_weight_balanced": balancear,
         "metricas_holdout_temporal": metricas,
     }
-    config.MODEL_METADATA_PATH.write_text(
+    metadata_path.write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
-    logger.info("Artefacto guardado en %s", config.MODEL_PATH)
+    logger.info("Artefacto guardado en %s", model_path)
     return metadata
 
 
@@ -193,8 +234,14 @@ def main() -> None:
         action="store_true",
         help="class_weight=balanced (NO estaba en el script original)",
     )
+    parser.add_argument(
+        "--algoritmo",
+        choices=ALGORITMOS,
+        default="rf",
+        help="rf sobrescribe el modelo de produccion; logistica se guarda aparte",
+    )
     args = parser.parse_args()
-    entrenar(args.db, args.test_size, args.balancear)
+    entrenar(args.db, args.test_size, args.balancear, args.algoritmo)
 
 
 if __name__ == "__main__":
