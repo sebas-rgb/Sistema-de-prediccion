@@ -44,6 +44,7 @@ NOMBRE_JSON = "comparacion_politicas.json"
 NOMBRES_MODELO = {
     "bosque": "bosque aleatorio",
     "logistica": "regresión logística",
+    "xgb": "XGBoost",
 }
 
 

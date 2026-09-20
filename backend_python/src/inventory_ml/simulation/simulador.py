@@ -127,27 +127,41 @@ def simular(
 
     stock_actual = _insertar_productos(cur, productos)
     pendientes: list[dict] = []
+    # Indice de codigos con orden abierta. Antes se preguntaba con un
+    # any(...) sobre la lista, o sea un escaneo lineal por producto y por dia:
+    # con 400 productos no se notaba, con 44.582 la simulacion se vuelve
+    # cuadratica y no termina.
+    codigos_pendientes: set[str] = set()
 
     for dia in range(dias):
         fecha = fecha_inicio + timedelta(days=dia)
         fecha_str = fecha.strftime("%Y-%m-%d")
 
         # --- llegadas de restock ---
-        for orden in pendientes[:]:
-            if orden["fecha_llegada"] <= fecha:
-                codigo = orden["codigo"]
-                stock_actual[codigo] += int(orden["cantidad"])
-                cur.execute(
-                    "INSERT INTO movimientos (fecha, codigo, tipo, cantidad, stock_resultante)"
-                    " VALUES (?,?,?,?,?)",
-                    (fecha_str, codigo, "RESTOCK", int(orden["cantidad"]), stock_actual[codigo]),
-                )
-                cur.execute(
-                    "UPDATE ordenes_restock SET estado='RECIBIDO' WHERE id=?", (orden["id"],)
-                )
-                pendientes.remove(orden)
+        # Se reconstruye la lista en vez de hacer .remove() por orden: remove()
+        # es otro escaneo lineal, y en un dia pueden llegar miles de ordenes.
+        restantes: list[dict] = []
+        for orden in pendientes:
+            if orden["fecha_llegada"] > fecha:
+                restantes.append(orden)
+                continue
+            codigo = orden["codigo"]
+            stock_actual[codigo] += int(orden["cantidad"])
+            cur.execute(
+                "INSERT INTO movimientos (fecha, codigo, tipo, cantidad, stock_resultante)"
+                " VALUES (?,?,?,?,?)",
+                (fecha_str, codigo, "RESTOCK", int(orden["cantidad"]), stock_actual[codigo]),
+            )
+            cur.execute(
+                "UPDATE ordenes_restock SET estado='RECIBIDO' WHERE id=?", (orden["id"],)
+            )
+            codigos_pendientes.discard(codigo)
+        pendientes = restantes
 
         # --- consumo, pedidos y snapshot ---
+        # Los snapshots se acumulan y se insertan de un golpe al cerrar el dia:
+        # 16 millones de execute() individuales dominaban el tiempo total.
+        snapshots: list[tuple] = []
         for p in productos:
             codigo = str(p["codigo"])
             stock = stock_actual[codigo]
@@ -164,9 +178,7 @@ def simular(
                     (fecha_str, codigo, "CONSUMO", consumo, stock),
                 )
 
-            if stock_actual[codigo] <= 0 and not any(
-                o["codigo"] == codigo for o in pendientes
-            ):
+            if stock_actual[codigo] <= 0 and codigo not in codigos_pendientes:
                 cantidad = max(
                     1,
                     int(round(max(p["reposicion_promedio"], p.get("stock_promedio", 0)))),
@@ -185,11 +197,11 @@ def simular(
                         "fecha_llegada": fecha_llegada,
                     }
                 )
+                codigos_pendientes.add(codigo)
 
-            cur.execute(
-                "INSERT INTO inventario VALUES (?,?,?)",
-                (fecha_str, codigo, int(stock_actual[codigo])),
-            )
+            snapshots.append((fecha_str, codigo, int(stock_actual[codigo])))
+
+        cur.executemany("INSERT INTO inventario VALUES (?,?,?)", snapshots)
 
         if dia % 60 == 0:
             logger.info("Dia %s | ordenes pendientes: %s", dia, len(pendientes))

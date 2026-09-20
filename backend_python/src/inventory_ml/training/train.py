@@ -20,6 +20,7 @@ import argparse
 import json
 import logging
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -60,7 +61,7 @@ ESTADO_VALIDACION = "NO_VALIDADO_CON_DATOS_REALES"
 # "rf" es el modelo de produccion y conserva las rutas de config. "logistica"
 # se guarda aparte: sirve de linea base interpretable en el experimento y no
 # debe pisar el artefacto que sirve la API.
-ALGORITMOS = ("rf", "logistica")
+ALGORITMOS = ("rf", "logistica", "xgb")
 
 
 def rutas_artefacto(algoritmo: str) -> tuple[Path, Path]:
@@ -93,7 +94,9 @@ def split_temporal(
     return train, test, corte
 
 
-def construir_pipeline(balancear: bool = False, algoritmo: str = "rf") -> Pipeline:
+def construir_pipeline(
+    balancear: bool = False, algoritmo: str = "rf", dispositivo: str = "cuda"
+) -> Pipeline:
     """Encoding + modelo en un solo artefacto.
 
     Hiperparametros del bosque identicos a los de `riesgo_agotamiento.py` (el
@@ -117,6 +120,26 @@ def construir_pipeline(balancear: bool = False, algoritmo: str = "rf") -> Pipeli
         remainder="passthrough",
         verbose_feature_names_out=False,
     )
+    if algoritmo == "xgb":
+        # Import local: xgboost es una dependencia opcional (extra "gpu"). El
+        # resto del proyecto -- API, inferencia, tests -- funciona sin ella.
+        from xgboost import XGBClassifier
+
+        # device="cuda" solo rinde con millones de filas. Con las 107k de la
+        # muestra de 400 productos la GPU pierde contra la CPU: inicializar el
+        # contexto CUDA y mover los datos cuesta mas que el ajuste entero.
+        modelo = XGBClassifier(
+            n_estimators=200,
+            max_depth=8,
+            learning_rate=0.1,
+            tree_method="hist",
+            device=dispositivo,
+            scale_pos_weight=None,
+            random_state=SEMILLA,
+            verbosity=0,
+        )
+        return Pipeline([("preproceso", preprocesador), ("modelo", modelo)])
+
     if algoritmo == "logistica":
         # Escalar es obligatorio aqui y no en el bosque: stock_actual llega a
         # miles y frecuencia_movimiento vive en [0,1]. Sin StandardScaler el
@@ -151,6 +174,7 @@ def entrenar(
     test_size: float = 0.2,
     balancear: bool = False,
     algoritmo: str = "rf",
+    dispositivo: str = "cuda",
 ) -> dict:
     inventario, productos = cargar_desde_sqlite(db_path)
     dataset = construir_dataset(inventario, productos, config.HORIZONTE_DIAS)
@@ -166,8 +190,13 @@ def entrenar(
     X_test = preparar_features(test)
     y_test = test[TARGET]
 
-    pipeline = construir_pipeline(balancear=balancear, algoritmo=algoritmo)
+    pipeline = construir_pipeline(
+        balancear=balancear, algoritmo=algoritmo, dispositivo=dispositivo
+    )
+    inicio_fit = time.perf_counter()
     pipeline.fit(X_train, y_train)
+    segundos_fit = round(time.perf_counter() - inicio_fit, 2)
+    logger.info("Ajuste en %s s (algoritmo=%s dispositivo=%s)", segundos_fit, algoritmo, dispositivo)
 
     # Verificacion explicita de la clase positiva (no asumir [:, 1])
     clases = list(pipeline.classes_)
@@ -214,6 +243,8 @@ def entrenar(
         "n_train": int(len(train)),
         "semilla": SEMILLA,
         "class_weight_balanced": balancear,
+        "dispositivo": dispositivo if algoritmo == "xgb" else "cpu",
+        "segundos_entrenamiento": segundos_fit,
         "metricas_holdout_temporal": metricas,
     }
     metadata_path.write_text(
@@ -238,10 +269,16 @@ def main() -> None:
         "--algoritmo",
         choices=ALGORITMOS,
         default="rf",
-        help="rf sobrescribe el modelo de produccion; logistica se guarda aparte",
+        help="rf sobrescribe el modelo de produccion; el resto se guarda aparte",
+    )
+    parser.add_argument(
+        "--dispositivo",
+        choices=("cuda", "cpu"),
+        default="cuda",
+        help="Solo aplica a --algoritmo xgb",
     )
     args = parser.parse_args()
-    entrenar(args.db, args.test_size, args.balancear, args.algoritmo)
+    entrenar(args.db, args.test_size, args.balancear, args.algoritmo, args.dispositivo)
 
 
 if __name__ == "__main__":

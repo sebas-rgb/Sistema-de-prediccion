@@ -24,6 +24,11 @@ dependencies = [
 dev = [
     "pytest>=7.4",
 ]
+# Solo hace falta para --algoritmo xgb. La rueda de PyPI ya trae CUDA en
+# Windows; no se instala nada mas.
+gpu = [
+    "xgboost>=2.1",
+]
 
 [project.scripts]
 inventory-ingest = "inventory_ml.ingestion.perfilado:main"
