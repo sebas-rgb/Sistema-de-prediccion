@@ -5,7 +5,11 @@ import com.maple.back.dto.InventarioDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -115,6 +119,30 @@ public class PredictionClient {
         } catch (Exception e) {
             log.error("Fallo al obtener el experimento desde {}", baseUrl, e);
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Reenvia una peticion tal cual (JSON crudo) y devuelve el estado y el
+     * cuerpo de Python sin reinterpretarlos: el 409 de "tarea en curso" o el
+     * 422 de validacion le sirven a la interfaz para explicar que paso.
+     */
+    public ResponseEntity<String> reenviar(HttpMethod metodo, String ruta, String cuerpo) {
+        try {
+            var peticion = http.method(metodo).uri(ruta);
+            if (cuerpo != null) {
+                peticion.contentType(MediaType.APPLICATION_JSON).body(cuerpo);
+            }
+            ResponseEntity<String> r = peticion.retrieve()
+                    .onStatus(HttpStatusCode::isError, (req, res) -> { })
+                    .toEntity(String.class);
+            // Solo estado y cuerpo: las cabeceras de Python (longitud, servidor) no se reenvian
+            return ResponseEntity.status(r.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(r.getBody());
+        } catch (Exception e) {
+            log.error("Fallo al reenviar {} {} a {}", metodo, ruta, baseUrl, e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
     }
 

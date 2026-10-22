@@ -20,8 +20,8 @@ function burbuja(texto, esUsuario) {
   cuerpo.className =
     "max-w-[85%] px-4 py-2 rounded-2xl text-sm " +
     (esUsuario
-      ? "bg-sky-600 text-white rounded-br-sm whitespace-pre-wrap"
-      : "bg-gray-100 text-gray-800 rounded-bl-sm md burbuja-md");
+      ? "bg-brand text-white rounded-br-sm whitespace-pre-wrap"
+      : "bg-slate-100 text-slate-800 rounded-bl-sm md burbuja-md");
 
   if (esUsuario || !window.marked || !window.DOMPurify) {
     cuerpo.textContent = texto;                    // sin librerias: texto plano
@@ -41,8 +41,8 @@ function pensando() {
   div.className = "flex justify-start";
   div.id = "burbujaPensando";
   div.innerHTML =
-    '<div class="px-4 py-2 rounded-2xl bg-gray-100 text-gray-500 text-sm">' +
-    '<i class="fas fa-circle-notch fa-spin mr-2"></i>Analizando el inventario…</div>';
+    '<div class="px-4 py-2 rounded-2xl bg-slate-100 text-slate-600 text-sm">' +
+    '<i class="fas fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>Analizando el inventario…</div>';
   return div;
 }
 
@@ -62,7 +62,8 @@ async function enviarPregunta(texto) {
     const res = await fetch("/api/inventario/asistente", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pregunta: texto, fecha: fechaActual || null }),
+      // la fecha la publica la pagina de Inventario; en las demas se usa la ultima
+      body: JSON.stringify({ pregunta: texto, fecha: window.fechaInventario || null }),
     });
 
     document.getElementById("burbujaPensando")?.remove();
@@ -70,18 +71,18 @@ async function enviarPregunta(texto) {
     if (res.status === 503) {
       hilo.appendChild(
         burbuja(
-          "El asistente no está disponible. Verifica que FastAPI esté corriendo y que la variable LLM_API_KEY esté configurada.",
+          "El asistente no está disponible ahora. Si sigue así, pide al equipo técnico que revise que FastAPI esté corriendo y que LLM_API_KEY esté configurada.",
           false
         )
       );
     } else if (!res.ok) {
-      hilo.appendChild(burbuja("Error " + res.status + " al consultar el asistente.", false));
+      hilo.appendChild(burbuja("El asistente respondió con un error (" + res.status + "). Vuelve a enviar la pregunta.", false));
     } else {
       const data = await res.json();
       hilo.appendChild(burbuja(data.respuesta, false));
 
       const pie = document.createElement("div");
-      pie.className = "text-xs text-gray-400 px-2";
+      pie.className = "text-xs text-slate-500 px-2";
       pie.textContent =
         "Contexto: inventario del " + data.fechaContexto +
         " · modelo predictivo " + data.versionModeloPrediccion +
@@ -93,54 +94,94 @@ async function enviarPregunta(texto) {
       if (data.herramientasUsadas && data.herramientasUsadas.length) {
         const usadas = document.createElement("div");
         usadas.className = "flex flex-wrap gap-1 px-2 mt-1";
-        usadas.innerHTML = data.herramientasUsadas
-          .map(
-            (h) =>
-              '<span class="px-2 py-0.5 text-[10px] rounded-full bg-violet-50 ' +
-              'text-violet-700 border border-violet-200">' +
-              '<i class="fas fa-wrench mr-1"></i>' + h + "</span>"
-          )
-          .join("");
+        data.herramientasUsadas.forEach((h) => {
+          const chip = document.createElement("span");
+          chip.className = "px-2 py-0.5 text-xs rounded-md bg-slate-100 text-slate-700";
+          chip.innerHTML = '<i class="fas fa-wrench mr-1" aria-hidden="true"></i>';
+          chip.append(h);
+          usadas.appendChild(chip);
+        });
         hilo.appendChild(usadas);
       }
     }
   } catch (err) {
     document.getElementById("burbujaPensando")?.remove();
     console.error("Error en el asistente:", err);
-    hilo.appendChild(burbuja("No se pudo contactar el servicio: " + err.message, false));
+    hilo.appendChild(burbuja("No se pudo contactar el asistente (" + err.message + "). Revisa tu conexión y vuelve a intentarlo.", false));
   } finally {
     input.disabled = false;
     boton.disabled = false;
     input.focus();
     hilo.scrollTop = hilo.scrollHeight;
+    guardarHilo();
   }
 }
 
+// La conversacion sobrevive al cambio de pagina durante la sesion. Solo se
+// guarda HTML que ya genero este archivo (texto plano o markdown saneado).
+const CLAVE_HILO = "asistente.hilo";
+const CLAVE_ABIERTO = "asistente.abierto";
+
+function guardarHilo() {
+  try { sessionStorage.setItem(CLAVE_HILO, document.getElementById("hiloChat").innerHTML); } catch (e) {}
+}
+
+function abrirPanel(abrir, enfocar = true) {
+  const panel = document.getElementById("panelAsistente");
+  const disparador = document.getElementById("abrirAsistente");
+  panel.toggleAttribute("data-abierto", abrir);
+  document.body.classList.toggle("con-asistente", abrir);
+  panel.inert = !abrir;
+  disparador.setAttribute("aria-expanded", String(abrir));
+  disparador.hidden = abrir;
+  try { localStorage.setItem(CLAVE_ABIERTO, abrir ? "1" : ""); } catch (e) {}
+  if (!enfocar) return;
+  (abrir ? document.getElementById("inputChat") : disparador).focus();
+}
+
 function iniciarChat() {
+  const hilo = document.getElementById("hiloChat");
+  try { hilo.innerHTML = sessionStorage.getItem(CLAVE_HILO) || ""; } catch (e) {}
+  document.getElementById("burbujaPensando")?.remove(); // si se cambio de pagina a mitad de respuesta
+
+  document.getElementById("abrirAsistente").addEventListener("click", () => abrirPanel(true));
+  document.getElementById("cerrarAsistente").addEventListener("click", () => abrirPanel(false));
+  document.getElementById("limpiarAsistente").addEventListener("click", () => {
+    hilo.replaceChildren();
+    guardarHilo();
+    document.getElementById("inputChat").focus();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.getElementById("panelAsistente").hasAttribute("data-abierto")) abrirPanel(false);
+  });
+
+  let abierto = false;
+  try { abierto = localStorage.getItem(CLAVE_ABIERTO) === "1"; } catch (e) {}
+  if (abierto) {
+    // sin animacion al reabrir en otra pagina: solo se anima lo que hace el usuario
+    const panel = document.getElementById("panelAsistente");
+    panel.style.transition = document.body.style.transition = "none";
+    abrirPanel(true, false);
+    panel.offsetWidth;
+    panel.style.transition = document.body.style.transition = "";
+  }
+  hilo.scrollTop = hilo.scrollHeight;
+
   const sugerencias = document.getElementById("sugerenciasChat");
   sugerencias.innerHTML = SUGERENCIAS.map(
     (s) =>
-      '<button class="px-3 py-1 text-xs rounded-full bg-sky-50 text-sky-700 ' +
-      'hover:bg-sky-100 border border-sky-200 transition">' + s + "</button>"
+      '<button type="button" class="btn px-3 py-1.5 text-sm font-medium rounded-full ' +
+      'border border-brand-100 bg-brand-50 text-brand-ink hover:bg-brand-100">' + s + "</button>"
   ).join("");
   sugerencias.querySelectorAll("button").forEach((b) =>
     b.addEventListener("click", () => enviarPregunta(b.textContent))
   );
 
-  const input = document.getElementById("inputChat");
-  const boton = document.getElementById("btnEnviarChat");
-
-  const enviar = () => {
-    const texto = input.value.trim();
-    if (texto.length >= 3) enviarPregunta(texto);
-  };
-
-  boton.addEventListener("click", enviar);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      enviar();
-    }
+  // El form valida minlength/required de forma nativa
+  document.getElementById("formChat").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const texto = document.getElementById("inputChat").value.trim();
+    if (texto) enviarPregunta(texto);
   });
 }
 

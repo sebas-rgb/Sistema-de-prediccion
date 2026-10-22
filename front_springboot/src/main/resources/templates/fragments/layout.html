@@ -1,0 +1,88 @@
+<!-- Piezas compartidas por las pantallas con sesión iniciada -->
+
+<th:block th:fragment="cabeza(titulo)">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${titulo} + ' · Predicción de inventario · Austral Lens'">Predicción de inventario</title>
+    <link th:href="@{/main.css}" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</th:block>
+
+<header th:fragment="barra(activa)" class="bg-brand-ink text-white">
+    <a href="#contenido"
+       class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-brand-ink">
+        Saltar al contenido
+    </a>
+    <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6" aria-label="Principal">
+        <a href="/menu" class="flex items-center gap-3 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            <img src="/images/logo.png" alt="" class="h-9 object-contain brightness-0 invert">
+            <span class="font-semibold">Predicción de inventario</span>
+        </a>
+        <ul class="-mx-3 flex basis-full flex-wrap items-center gap-1 text-sm font-medium lg:mx-0 lg:basis-auto lg:flex-1 lg:flex-nowrap">
+            <li th:each="m : ${ {{'menu','/menu','Inventario'},{'analisis','/analisis','Análisis'},{'simulador','/simulador','Simulador'},{'modelos','/modelos','Modelos'}} }">
+                <a th:href="${m[1]}" th:text="${m[2]}" th:attr="aria-current=${activa == m[0]} ? 'page'"
+                   class="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-white/10 aria-[current=page]:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"></a>
+            </li>
+            <li class="ml-auto"><a href="/perfil" th:attr="aria-current=${activa == 'perfil'} ? 'page'"
+                   class="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-white/10 aria-[current=page]:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">Mi perfil</a></li>
+            <li><a href="/logout"
+                   class="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">Cerrar sesión</a></li>
+        </ul>
+    </nav>
+</header>
+
+<footer th:fragment="pie" class="mt-auto border-t border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-600 sm:flex-row sm:justify-between sm:px-6">
+        <p>© 2026 Austral Lens Colombia</p>
+        <p>Soporte: <a href="mailto:soporte.sistemas@australlens.com" class="link">soporte.sistemas@australlens.com</a>
+            · <a href="tel:+576015145827" class="link">(601) 514 5827</a></p>
+    </div>
+</footer>
+
+<!-- Asistente: panel a la derecha, disponible en todas las pantallas -->
+<th:block th:fragment="asistente">
+    <button id="abrirAsistente" type="button" aria-controls="panelAsistente" aria-expanded="false"
+            class="btn-primary fixed bottom-5 right-5 z-30 rounded-full px-5 py-3 shadow-lg">
+        <i class="fas fa-comments" aria-hidden="true"></i> Asistente
+    </button>
+
+    <aside id="panelAsistente" aria-labelledby="tituloAsistente" inert
+           class="panel-asistente fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-slate-200 bg-white shadow-2xl sm:w-[420px]">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
+            <div>
+                <h2 id="tituloAsistente" class="font-bold text-slate-900">Asistente de inventario</h2>
+                <p class="text-xs text-slate-600">Analiza y prioriza; la decisión de compra es tuya.</p>
+            </div>
+            <div class="flex gap-1">
+                <button id="limpiarAsistente" type="button" title="Nueva conversación"
+                        class="btn px-2.5 py-1.5 text-slate-600 hover:bg-slate-100">
+                    <i class="fas fa-rotate-left" aria-hidden="true"></i><span class="sr-only">Nueva conversación</span>
+                </button>
+                <button id="cerrarAsistente" type="button" title="Cerrar (Esc)"
+                        class="btn px-2.5 py-1.5 text-slate-600 hover:bg-slate-100">
+                    <i class="fas fa-xmark" aria-hidden="true"></i><span class="sr-only">Cerrar asistente</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="hiloChat" role="log" aria-live="polite" aria-label="Conversación con el asistente"
+             class="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4"></div>
+
+        <div class="border-t border-slate-200 p-4">
+            <div id="sugerenciasChat" class="mb-3 flex flex-wrap gap-2"></div>
+            <form id="formChat" class="flex gap-2">
+                <label for="inputChat" class="sr-only">Tu pregunta</label>
+                <input type="text" id="inputChat" placeholder="Escribe tu pregunta…" maxlength="1000"
+                       minlength="3" required autocomplete="off" class="field flex-1">
+                <button id="btnEnviarChat" type="submit" class="btn-primary" aria-label="Enviar pregunta">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- marked renderiza el markdown del modelo, DOMPurify lo limpia -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+    <script th:src="@{/asistente.js}" defer></script>
+</th:block>

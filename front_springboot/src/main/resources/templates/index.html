@@ -1,219 +1,116 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inicio de Sesión - Centro de soporte TI - Austral Lens</title>
-    <!-- CSS compilado de Tailwind + animaciones personalizadas -->
+    <title>Iniciar sesión · Predicción de inventario · Austral Lens</title>
     <link th:href="@{/main.css}" rel="stylesheet"/>
-
-    <style>
-        body {
-            background: linear-gradient(
-                    140deg,
-                    #ffffff 0%,
-                    #f0f9ff 100%,
-                    #e0f2fe 100%
-            ) !important;
-            background-attachment: fixed;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
-<body>
-<div class="min-h-screen flex flex-col md:flex-row-reverse">
+<body class="min-h-screen">
+<main class="flex min-h-screen items-center justify-center px-4 py-10">
+    <form id="loginForm" th:action="@{/login}" method="post"
+          class="card w-full max-w-md space-y-5 p-6 sm:p-8">
+        <div class="space-y-2 text-center">
+            <img src="/images/logo.png" alt="Austral Lens" class="mx-auto h-14 object-contain">
+            <h1 class="text-2xl font-bold text-slate-900">Iniciar sesión</h1>
+            <p class="text-sm text-slate-600">Predicción de agotamiento de inventario</p>
+        </div>
 
-    <!-- PANEL IZQUIERDO → FORMULARIO -->
-    <div class="flex-1 flex items-center justify-center p-6 md:p-10">
-        <form id="loginForm" th:action="@{/login}" method="post"
-              class="bg-white border border-gray-200 rounded-2xl p-10 w-full max-w-lg space-y-6 shadow-xl">
-            <!-- LOGO + TITULO -->
-            <div class="text-center space-y-3">
-                <div class="flex justify-center">
-                    <img src="/images/logo.png" alt="Logo"
-                         class="h-16 md:h-20 object-contain">
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900">Iniciar Sesión</h2>
-                <p class="text-2xl  font-bold text-gray-600">Soporte TI</p>
-            </div>
+        <div th:if="${success}" class="alert-ok" role="status">
+            <i class="fas fa-check-circle mr-1" aria-hidden="true"></i><span th:text="${success}"></span>
+        </div>
+        <div th:if="${error}" class="alert-error" role="alert">
+            <i class="fas fa-exclamation-circle mr-1" aria-hidden="true"></i><span th:text="${error}"></span>
+        </div>
+        <div th:if="${param.error}" class="alert-error" role="alert">
+            <i class="fas fa-exclamation-circle mr-1" aria-hidden="true"></i>
+            Correo o contraseña incorrectos. Revísalos o
+            <a href="/recover" class="font-semibold underline">recupera tu contraseña</a>.
+        </div>
 
-            <!-- MENSAJES -->
-            <div th:if="${success}" class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-check-circle mr-1"></i>
-                <span th:text="${success}"></span>
-            </div>
+        <div>
+            <label for="email" class="label">Correo electrónico</label>
+            <input id="email" type="email" name="email" required autocomplete="email"
+                   placeholder="nombre@australlens.com" class="field"/>
+        </div>
 
-            <div th:if="${error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-exclamation-circle mr-1"></i>
-                <span th:text="${error}"></span>
-            </div>
-
-            <div th:if="${param.error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm">
-                <i class="fas fa-exclamation-circle mr-1"></i>
-                Correo o contraseña incorrectos.
-            </div>
-
-            <!-- EMAIL -->
-            <div>
-                <label class="block text-gray-700 font-medium mb-1">
-                    Correo electrónico
-                </label>
-                <input
-                        id="email"
-                        type="email" name="email"
-                        required
-                        placeholder="ejemplo@correo.com"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
-            </div>
-
-            <!-- PASSWORD -->
-            <div>
-                <label class="block text-gray-700 font-medium mb-1">
-                    Contraseña
-                </label>
-                <input
-                        id="password"
-                        type="password" name="password"
-                        required
-                        placeholder="••••••••"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
-            </div>
-
-            <!-- SHOW PASSWORD -->
-            <label class="flex items-center space-x-2 text-sm text-gray-600">
-                <input type="checkbox" onclick="togglePasswordVisibility()" class="accent-sky-500">
-                <span>Mostrar contraseña</span>
+        <div>
+            <label for="password" class="label">Contraseña</label>
+            <input id="password" type="password" name="password" required
+                   autocomplete="current-password" class="field"/>
+            <label class="mt-2 inline-flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" id="verPassword" class="accent-brand">
+                Mostrar contraseña
             </label>
+        </div>
 
-            <!-- BOTON -->
-            <button
-                    id="loginBtn"
-                    type="submit"
-                    class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2.5 rounded-lg transition-all hover:scale-[1.02]"
-            >
-                Iniciar Sesión
-            </button>
+        <button id="loginBtn" type="submit" class="btn-primary w-full">Iniciar sesión</button>
 
-            <!-- LINKS -->
-            <div class="text-center text-sm text-gray-600 space-y-1">
-                <a href="/recover" class="block hover:text-sky-600">¿Olvidaste tu contraseña?</a>
-                <a href="/register" class="block hover:text-sky-600">Crear cuenta</a>
+        <p class="flex flex-wrap justify-between gap-2 text-sm">
+            <a href="/recover" class="link">¿Olvidaste tu contraseña?</a>
+            <a href="/register" class="link">Crear cuenta</a>
+        </p>
+    </form>
+</main>
+
+<!-- Aviso de migración para usuarios existentes (modal obligatorio) -->
+<div id="migrationNotice" role="dialog" aria-modal="true" aria-labelledby="migrationTitle"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4">
+    <div class="card w-full max-w-xl p-6 shadow-xl sm:p-8">
+        <div class="mb-4 flex items-start gap-3">
+            <i class="fas fa-triangle-exclamation mt-1 text-xl text-amber-600" aria-hidden="true"></i>
+            <div>
+                <h2 id="migrationTitle" class="text-xl font-bold text-slate-900">Cambiamos de sistema: actualiza tu contraseña</h2>
+                <p class="text-sm text-slate-600">Tu contraseña anterior ya no funciona.</p>
             </div>
+        </div>
 
-        </form>
-    </div>
+        <div class="space-y-3 text-sm leading-relaxed text-slate-700">
+            <p>Durante la migración reemplazamos todas las contraseñas anteriores.</p>
+            <p class="rounded-lg border border-amber-300 bg-amber-50 p-3 font-medium text-amber-900">
+                Si ya tenías cuenta, usa <strong>Recuperar contraseña</strong> para crear una nueva.
+                Después podrás entrar desde esta pantalla.
+            </p>
+        </div>
 
-</div>
-
-<!-- Aviso de migracion para usuarios existentes (modal obligatorio) -->
-<div id="migrationNotice" class="hidden fixed inset-0 z-50 bg-gray-900/65 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-    <div class="w-full max-w-2xl rounded-2xl border border-sky-200 bg-white shadow-2xl">
-        <div class="p-6 sm:p-8">
-            <div class="flex items-start gap-3 mb-4">
-                <div class="w-10 h-10 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
-                    <i class="fas fa-triangle-exclamation"></i>
-                </div>
-                <div>
-                    <h3 class="text-xl sm:text-2xl font-extrabold text-sky-800">Migracion en curso: accion obligatoria</h3>
-                    <p class="text-sm text-gray-500">Por seguridad, debes actualizar tu contraseña antes de continuar.</p>
-                </div>
-            </div>
-
-            <div class="space-y-3 text-sm sm:text-base text-gray-700 leading-relaxed">
-                <p>
-                    Estamos migrando a una nueva version del sistema. Durante esta etapa, las contraseñas anteriores
-                    fueron reemplazadas y el acceso normal desde este formulario quedo bloqueado temporalmente.
-                </p>
-                <p class="font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-                    Si ya tenias cuenta, debes usar SI o SI el modulo de recuperar contraseña para definir una nueva.
-                </p>
-                <p>
-                    Una vez completes la recuperacion, podras volver a esta pantalla e iniciar sesion normalmente.
-                </p>
-            </div>
-
-            <div class="mt-6 flex flex-col sm:flex-row sm:justify-end gap-3">
-                <button
-                        type="button"
-                        onclick="dismissMigrationNotice()"
-                        class="px-4 py-2 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-50 transition text-center font-semibold"
-                >
-                    Tengo cuenta, continuar al login
-                </button>
-                <a href="/recover"
-                   onclick="markMigrationNoticeHandled()"
-                   class="px-4 py-2 rounded-lg bg-sky-500 text-white hover:bg-sky-600 transition text-center font-semibold">
-                    Ya tenia cuenta, ir a recuperar contrasena
-                </a>
-            </div>
+        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" id="cerrarAviso" class="btn-secondary">Ya actualicé mi contraseña</button>
+            <a href="/recover" id="irRecuperar" class="btn-primary">Recuperar contraseña</a>
         </div>
     </div>
 </div>
 
 <script>
-    function togglePasswordVisibility() {
-        const password = document.getElementById("password");
-        password.type = password.type === "password" ? "text" : "password";
-    }
-
-    function setCookie(name, value, days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = name + "=" + value + ";expires=" + date.toUTCString() + ";path=/;SameSite=Lax";
-    }
-
-    function getCookie(name) {
-        const key = name + "=";
-        const parts = document.cookie.split(';');
-        for (let i = 0; i < parts.length; i++) {
-            const cookie = parts[i].trim();
-            if (cookie.indexOf(key) === 0) {
-                return cookie.substring(key.length, cookie.length);
-            }
-        }
-        return null;
-    }
-
-    function markMigrationNoticeHandled() {
-        setCookie("migration_notice_handled", "true", 90);
-    }
-
-    function dismissMigrationNotice() {
-        markMigrationNoticeHandled();
-
-        const notice = document.getElementById("migrationNotice");
-        const loginBtn = document.getElementById("loginBtn");
-        if (notice) {
-            notice.classList.add("hidden");
-        }
-
-        document.body.classList.remove("overflow-hidden");
-
-        if (loginBtn) {
-            loginBtn.disabled = false;
-            loginBtn.classList.remove("opacity-60", "cursor-not-allowed");
-            loginBtn.removeAttribute("title");
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-        const notice = document.getElementById("migrationNotice");
-        const loginBtn = document.getElementById("loginBtn");
-        const alreadyHandled = getCookie("migration_notice_handled") === "true";
-
-        if (!alreadyHandled) {
-            notice.classList.remove("hidden");
-            document.body.classList.add("overflow-hidden");
-
-            if (loginBtn) {
-                loginBtn.disabled = true;
-                loginBtn.classList.add("opacity-60", "cursor-not-allowed");
-                loginBtn.title = "Primero selecciona una opcion del aviso de migracion";
-            }
-        }
+    document.getElementById("verPassword").addEventListener("change", function () {
+        document.getElementById("password").type = this.checked ? "text" : "password";
     });
+
+    const AVISO_COOKIE = "migration_notice_handled";
+    const aviso = document.getElementById("migrationNotice");
+
+    function marcarAviso() {
+        document.cookie = AVISO_COOKIE + "=true;max-age=" + 90 * 24 * 3600 + ";path=/;SameSite=Lax";
+    }
+
+    function cerrarAviso() {
+        marcarAviso();
+        aviso.classList.replace("flex", "hidden");
+        document.body.classList.remove("overflow-hidden");
+        document.querySelector("main").inert = false;
+        document.getElementById("email").focus();
+    }
+
+    document.getElementById("cerrarAviso").addEventListener("click", cerrarAviso);
+    document.getElementById("irRecuperar").addEventListener("click", marcarAviso);
+    aviso.addEventListener("keydown", function (e) { if (e.key === "Escape") cerrarAviso(); });
+
+    if (!document.cookie.split("; ").includes(AVISO_COOKIE + "=true")) {
+        aviso.classList.replace("hidden", "flex");
+        document.body.classList.add("overflow-hidden");
+        document.querySelector("main").inert = true; // el foco no se escapa al formulario de atrás
+        document.getElementById("irRecuperar").focus();
+    }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/flowbite@2.2.1/dist/flowbite.min.js"></script>
 </body>
 </html>

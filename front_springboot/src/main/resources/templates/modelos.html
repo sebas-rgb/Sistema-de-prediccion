@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head><th:block th:replace="~{fragments/layout :: cabeza('Modelos')}"></th:block></head>
+<body class="flex min-h-screen flex-col">
+
+<header th:replace="~{fragments/layout :: barra('modelos')}"></header>
+
+<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Modelos y comparación</h1>
+        <p class="mt-1 text-sm text-slate-600">Reentrena con la simulación actual y recalcula la comparación de políticas.
+            Todo corre en el servidor de Python.</p>
+    </div>
+
+    <section aria-labelledby="tituloModelos" class="card p-4 sm:p-6">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 id="tituloModelos" class="text-lg font-semibold text-slate-900">Modelos entrenados</h2>
+            <form data-tarea="entrenar" class="flex flex-wrap gap-2">
+                <button type="submit" name="algoritmo" value="rf" class="btn-primary">
+                    <i class="fas fa-play" aria-hidden="true"></i> Entrenar bosque (activo)
+                </button>
+                <button type="submit" name="algoritmo" value="logistica" class="btn-secondary">Entrenar logística</button>
+                <button type="submit" name="algoritmo" value="xgb" class="btn-secondary"
+                        title="Necesita el paquete xgboost instalado en el entorno de Python">Entrenar XGBoost</button>
+            </form>
+        </div>
+        <div class="-mx-4 overflow-x-auto sm:mx-0">
+            <table class="w-full min-w-[640px] whitespace-nowrap text-sm">
+                <caption class="sr-only">Modelos entrenados y su desempeño en el periodo de prueba</caption>
+                <thead class="border-b border-slate-200 text-left text-slate-600">
+                    <tr>
+                        <th scope="col" class="px-4 py-2 font-medium">Modelo</th>
+                        <th scope="col" class="px-4 py-2 font-medium">Entrenado</th>
+                        <th scope="col" class="px-4 py-2 font-medium">Corte de prueba</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Filas</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">ROC AUC</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Exactitud</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaModelos">
+                    <tr><td colspan="6" class="py-6 text-center text-slate-500">Cargando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <form data-tarea="experimento" aria-labelledby="tituloExperimento"
+          class="card flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+        <div class="max-w-xl">
+            <h2 id="tituloExperimento" class="text-lg font-semibold text-slate-900">Comparación de políticas</h2>
+            <p id="estadoExperimento" class="text-sm text-slate-600"></p>
+        </div>
+        <div class="flex items-end gap-2">
+            <div>
+                <label for="umbral" class="label">Umbral de pedido</label>
+                <input id="umbral" name="umbral" type="number" min="0.05" max="0.95" step="0.05" value="0.8"
+                       class="field w-28">
+            </div>
+            <button type="submit" class="btn-primary">Recalcular</button>
+        </div>
+    </form>
+
+    <section aria-labelledby="tituloTarea" class="card p-4 sm:p-6">
+        <h2 id="tituloTarea" class="mb-3 text-lg font-semibold text-slate-900">Última tarea</h2>
+        <div id="tarea" aria-live="polite"></div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: pie}"></footer>
+<th:block th:replace="~{fragments/layout :: asistente}"></th:block>
+
+<script>
+    const NOMBRES = { RandomForestClassifier: "Bosque aleatorio", LogisticRegression: "Regresión logística", XGBClassifier: "XGBoost" };
+    const fecha = (iso) => (iso ? new Date(iso).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" }) : "—");
+    const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("es-CO", { maximumFractionDigits: d }));
+
+    window.pintarEstado = function (estado) {
+        const cuerpo = document.getElementById("tablaModelos");
+        cuerpo.replaceChildren();
+        if (!estado.modelos.length) {
+            cuerpo.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">' +
+                "No hay modelos. Entrena el bosque para empezar.</td></tr>";
+        }
+        estado.modelos.forEach((m) => {
+            const tr = cuerpo.insertRow();
+            tr.className = "border-b border-slate-100 last:border-0";
+            const celdas = [
+                (NOMBRES[m.algoritmo] || m.algoritmo || m.nombre),
+                fecha(m.fecha_entrenamiento),
+                m.corte_temporal || "—",
+                num(m.n_train, 0),
+                num(m.metricas?.roc_auc, 3),
+                m.metricas?.accuracy == null ? "—" : num(m.metricas.accuracy * 100, 1) + "%",
+            ];
+            celdas.forEach((texto, i) => {
+                const td = tr.insertCell();
+                td.className = "px-4 py-2.5" + (i >= 3 ? " text-right tabular-nums" : "");
+                td.textContent = texto;
+            });
+            if (m.activo) {
+                tr.cells[0].insertAdjacentHTML("beforeend",
+                    ' <span class="ml-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-medium text-brand-ink">en uso</span>');
+            }
+        });
+
+        document.getElementById("estadoExperimento").innerHTML = estado.experimento
+            ? "Calculada el " + fecha(estado.experimento.generado) +
+              ' · <a href="/analisis" class="link">ver gráfico</a>'
+            : "Aún no se ha calculado.";
+    };
+</script>
+<script th:src="@{/pipeline.js}" defer></script>
+</body>
+</html>

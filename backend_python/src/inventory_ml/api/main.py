@@ -20,6 +20,7 @@ from inventory_ml.api.dependencies import get_predictor, get_predictor_opcional
 from inventory_ml.api.asistente import router as asistente_router
 from inventory_ml.api.experimento import router as experimento_router
 from inventory_ml.api.inventario import router as inventario_router
+from inventory_ml.api.pipeline import router as pipeline_router
 from inventory_ml.api.schemas import (
     BatchRequest,
     BatchResponse,
@@ -192,3 +193,4 @@ app.include_router(router)
 app.include_router(inventario_router)
 app.include_router(experimento_router)
 app.include_router(asistente_router)
+app.include_router(pipeline_router)

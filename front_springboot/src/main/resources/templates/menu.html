@@ -1,426 +1,123 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Centro de soporte TI - Austral Lens</title>
-    <link th:href="@{/main.css}" rel="stylesheet"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<head><th:block th:replace="~{fragments/layout :: cabeza('Inventario')}"></th:block></head>
 
-    <style>
-        :root {
-            --al-blue:       #007DC8;
-            --al-blue-light: #0096C8;
-            --al-blue-dark:  #004B96;
-            --al-blue-mid:   #0064AF;
-            --al-blue-pale:  #d0eaf8;
-            --al-blue-xpale: #e8f4fd;
-        }
+<body class="flex min-h-screen flex-col">
 
-        /* Markdown de las respuestas del asistente */
-        .md > *:first-child { margin-top: 0; }
-        .md > *:last-child  { margin-bottom: 0; }
-        .md p, .md ul, .md ol, .md table { margin: 0.5rem 0; }
-        .md ul { list-style: disc;    padding-left: 1.25rem; }
-        .md ol { list-style: decimal; padding-left: 1.25rem; }
-        .md li { margin: 0.15rem 0; }
-        .md h1, .md h2, .md h3, .md h4 {
-            font-weight: 700; color: #0369a1; margin: 0.75rem 0 0.35rem;
-        }
-        .md h1 { font-size: 1.05rem; }
-        .md h2 { font-size: 1rem; }
-        .md h3, .md h4 { font-size: 0.9rem; }
-        .md strong { font-weight: 700; color: #0c4a6e; }
-        .md code {
-            background: #e0f2fe; color: #075985;
-            padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.85em;
-        }
-        .md pre {
-            background: #0f172a; color: #e2e8f0; padding: 0.75rem;
-            border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0;
-        }
-        .md pre code { background: none; color: inherit; padding: 0; }
-        .md table {
-            border-collapse: collapse; width: 100%;
-            font-size: 0.8rem; background: #fff;
-            border-radius: 0.5rem; overflow: hidden;
-            box-shadow: 0 0 0 1px #bae6fd;
-        }
-        .md th, .md td {
-            border-bottom: 1px solid #e0f2fe;
-            padding: 0.35rem 0.6rem; text-align: left;
-        }
-        .md th { background: #f0f9ff; color: #0369a1; font-weight: 600; white-space: nowrap; }
-        .md tr:last-child td { border-bottom: none; }
-        .md blockquote {
-            border-left: 3px solid #7dd3fc; padding-left: 0.75rem;
-            color: #475569; margin: 0.5rem 0;
-        }
-        .md hr { border: none; border-top: 1px solid #e0f2fe; margin: 0.75rem 0; }
-        .md a { color: #0284c7; text-decoration: underline; }
-        /* la tabla puede ser mas ancha que la burbuja */
-        .burbuja-md { overflow-x: auto; }
-    </style>
-</head>
+<header th:replace="~{fragments/layout :: barra('menu')}"></header>
 
-<body class="min-h-screen flex flex-col"
-      style="background: linear-gradient(135deg, var(--al-blue-xpale) 0%, #f0f8ff 100%);">
+<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6"
+      th:attr="inert=${!usuario.datosCompletos} ? 'inert'">
 
-<div th:if="${!usuario.datosCompletos}"
-     id="modalDatos"
-     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div>
+        <p class="text-sm text-slate-600">Hola, <span th:text="${usuario.nombre}">Usuario</span></p>
+        <h1 class="text-2xl font-bold text-slate-900">Riesgo de agotamiento a 30 días</h1>
+        <p id="statsInfo" class="mt-1 text-sm text-slate-600" aria-live="polite"></p>
+    </div>
 
-    <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
-        <h2 class="text-xl font-bold text-sky-700 mb-4">
-            Completa tu información
-        </h2>
+    <!-- Inventario -->
+    <section aria-labelledby="tituloInventario" class="card p-4 sm:p-6">
+        <h2 id="tituloInventario" class="sr-only">Productos</h2>
 
-        <!-- Mensaje de error si backend devuelve error -->
-        <div th:if="${error}" class="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            <span th:text="${error}"></span>
+        <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
+            <div class="flex-1">
+                <label for="searchInventory" class="label">Buscar por código</label>
+                <input type="search" id="searchInventory" placeholder="Ej: 611270" autocomplete="off" class="field">
+            </div>
+            <div>
+                <label for="fechaInventario" class="label">Fecha del inventario</label>
+                <input type="date" id="fechaInventario" class="field">
+            </div>
+            <button id="downloadCSV" type="button" class="btn-secondary">
+                <i class="fas fa-download" aria-hidden="true"></i> Descargar CSV
+            </button>
         </div>
 
+        <div class="-mx-4 overflow-x-auto sm:mx-0">
+            <table class="w-full min-w-[640px] whitespace-nowrap text-sm">
+                <caption class="sr-only">Productos con su stock y riesgo de agotamiento</caption>
+                <thead class="border-b border-slate-200 text-left text-slate-600">
+                    <tr>
+                        <th scope="col" class="px-4 py-2 font-medium">Código</th>
+                        <th scope="col" class="px-4 py-2 font-medium">Fecha</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Stock actual</th>
+                        <th scope="col" class="px-4 py-2 font-medium">Clase</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Consumo prom./día</th>
+                        <th scope="col" class="px-4 py-2 font-medium">Riesgo de agotamiento</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" aria-live="polite" aria-busy="true">
+                    <tr><td colspan="6" class="py-8 text-center text-slate-500">Cargando inventario…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <nav id="paginationContainer" aria-label="Páginas" class="mt-6 flex flex-wrap justify-center gap-2"></nav>
+    </section>
+
+
+</main>
+
+<footer th:replace="~{fragments/layout :: pie}"></footer>
+
+<!-- Completar datos: obligatorio la primera vez -->
+<div th:if="${!usuario.datosCompletos}" role="dialog" aria-modal="true" aria-labelledby="tituloDatos"
+     class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4">
+    <div class="card my-auto w-full max-w-lg p-6 shadow-xl">
+        <h2 id="tituloDatos" class="text-xl font-bold text-slate-900">Completa tu información</h2>
+        <p class="mb-4 text-sm text-slate-600">La necesitamos una sola vez para activar tu cuenta.</p>
+
+        <div th:if="${error}" class="alert-error mb-4" role="alert" th:text="${error}"></div>
+
         <form th:action="@{/usuario/completar-datos}" method="post" class="space-y-4">
-
-            <!-- Punto -->
             <div>
-                <label class="block text-sky-700 font-semibold mb-1">
-                    Punto: <span class="text-red-500">*</span>
-                </label>
-                <select required name="punto"
-                        class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white">
-                    <option value="">Seleccione un punto</option>
-                    <option value="DISTRIBUIDORES">DISTRIBUIDORES AUTORIZADOS</option>
-                    <option value="NO APLICA">NO APLICA</option>
-                    <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
-                    <option value="ARCHIVO">ARCHIVO</option>
-                    <option value="BARRANQUILLA">BARRANQUILLA</option>
-                    <option value="BODEGA">BODEGA</option>
-                    <option value="BUCARAMANGA">BUCARAMANGA</option>
-                    <option value="CALI">CALI</option>
-                    <option value="CENTRO">CENTRO</option>
-                    <option value="CHAPINERO">CHAPINERO</option>
-                    <option value="CHIA">CHIA</option>
-                    <option value="CUCUTA">CUCUTA</option>
-                    <option value="LABORATORIO">LABORATORIO</option>
-                    <option value="MANIZALES">MANIZALES</option>
-                    <option value="MEDELLIN">MEDELLIN</option>
-                    <option value="NEIVA">NEIVA</option>
-                    <option value="OLAYA">OLAYA</option>
-                    <option value="PEREIRA">PEREIRA</option>
-                    <option value="PRINCIPAL">PRINCIPAL</option>
-                    <option value="RIONEGRO">RIONEGRO</option>
-                    <option value="TUNJA">TUNJA</option>
-                    <option value="PASTO">PASTO</option>
+                <label for="dPunto" class="label">Área o punto de venta</label>
+                <select id="dPunto" name="punto" required class="field">
+                    <option value="">Selecciona un punto</option>
+                    <option th:each="p : ${puntos}" th:value="${p}" th:text="${p}"></option>
                 </select>
             </div>
-
-            <!-- Cargo -->
             <div>
-                <label class="block text-sky-700 font-semibold mb-1">
-                    Cargo: <span class="text-red-500">*</span>
-                </label>
-                <select required name="cargo"
-                        class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white">
-                    <option value="">Seleccione un cargo</option>
-                    <option value="NO APLICA">NO APLICA</option>
-                    <option value="ADMINISTRADOR/A">ADMINISTRADOR/A</option>
-                    <option value="ANALISTA DE CARTERA">ANALISTA DE CARTERA</option>
-                    <option value="ASESOR JURIDICO">ASESOR JURIDICO</option>
-                    <option value="ASISTENTE DE AUDITORIA">ASISTENTE DE AUDITORIA</option>
-                    <option value="ASISTENTE DE CONTABILIDAD">ASISTENTE DE CONTABILIDAD</option>
-                    <option value="ASISTENTE DE GERENCIA">ASISTENTE DE GERENCIA</option>
-                    <option value="ASISTENTE DE NOMINA">ASISTENTE DE NOMINA</option>
-                    <option value="ASISTENTE DE TALENTO HUMANO">ASISTENTE DE TALENTO HUMANO</option>
-                    <option value="AUDITOR INTERNO">AUDITOR INTERNO</option>
-                    <option value="AUXILIAR DE ARCHIVO">AUXILIAR DE ARCHIVO</option>
-                    <option value="AUXILIAR DE BODEGA">AUXILIAR DE BODEGA</option>
-                    <option value="AUXILIAR DE IMAGEN CORPORATIVA">AUXILIAR DE IMAGEN CORPORATIVA</option>
-                    <option value="AUXILIAR DE LABORATORIO">AUXILIAR DE LABORATORIO</option>
-                    <option value="AUXILIAR DE LABORATORIO - ANTIRREFLEJO">AUXILIAR DE LABORATORIO - ANTIRREFLEJO</option>
-                    <option value="AUXILIAR DE LABORATORIO - CALL CENTER">AUXILIAR DE LABORATORIO - CALL CENTER</option>
-                    <option value="AUXILIAR DE LABORATORIO - CONTROL DE CALIDAD">AUXILIAR DE LABORATORIO - CONTROL DE CALIDAD</option>
-                    <option value="AUXILIAR DE LABORATORIO - ENCINTADO">AUXILIAR DE LABORATORIO - ENCINTADO</option>
-                    <option value="AUXILIAR DE LABORATORIO - TALLA">AUXILIAR DE LABORATORIO - TALLA</option>
-                    <option value="AUXILIAR DE PUNTO DE VENTA">AUXILIAR DE PUNTO DE VENTA</option>
-                    <option value="AUXILIAR DE SERVICIOS GENERALES">AUXILIAR DE SERVICIOS GENERALES</option>
-                    <option value="AUXILIAR DE SERVICIOS VARIOS">AUXILIAR DE SERVICIOS VARIOS</option>
-                    <option value="BISELADOR/A">BISELADOR/A</option>
-                    <option value="CAJERO">CAJERO</option>
-                    <option value="COORDINADOR DE ARCHIVO Y SUMINISTROS">COORDINADOR DE ARCHIVO Y SUMINISTROS</option>
-                    <option value="COORDINADOR DE BISEL">COORDINADOR DE BISEL</option>
-                    <option value="COORDINADOR DE BODEGA">COORDINADOR DE BODEGA</option>
-                    <option value="COORDINADOR DE LABORATORIO">COORDINADOR DE LABORATORIO</option>
-                    <option value="COORDINADORA CONTABLE">COORDINADORA CONTABLE</option>
-                    <option value="DIRECTOR CIENTIFICO">DIRECTOR CIENTIFICO</option>
-                    <option value="DIRECTOR COMERCIAL">DIRECTOR COMERCIAL</option>
-                    <option value="DIRECTORA CONTABLE Y TESORERIA">DIRECTORA CONTABLE Y TESORERIA</option>
-                    <option value="DIRECTORA DE GESTION DE MARCA">DIRECTORA DE GESTION DE MARCA</option>
-                    <option value="DIRECTORA DE HSEQ">DIRECTORA DE HSEQ</option>
-                    <option value="DIRECTORA DE IMAGEN COORPORATIVA">DIRECTORA DE IMAGEN COORPORATIVA</option>
-                    <option value="DIRECTORA DE TALENTO HUMANO">DIRECTORA DE TALENTO HUMANO</option>
-                    <option value="EJECUTIVO COMERCIAL">EJECUTIVO COMERCIAL</option>
-                    <option value="GERENTE ADMINISTRATIVO Y FINANCIERO">GERENTE ADMINISTRATIVO Y FINANCIERO</option>
-                    <option value="GERENTE COMERCIAL">GERENTE COMERCIAL</option>
-                    <option value="JEFE DE BODEGA">JEFE DE BODEGA</option>
-                    <option value="JEFE DE LABORATORIO">JEFE DE LABORATORIO</option>
-                    <option value="LIDER DE SISTEMAS">LIDER DE SISTEMAS</option>
-                    <option value="MENSAJERO">MENSAJERO</option>
-                    <option value="PRESIDENTE">PRESIDENTE</option>
-                    <option value="APRENDIZ">APRENDIZ</option>
+                <label for="dCargo" class="label">Cargo</label>
+                <select id="dCargo" name="cargo" required class="field">
+                    <option value="">Selecciona un cargo</option>
+                    <option th:each="c : ${cargos}" th:value="${c}" th:text="${c}"></option>
                 </select>
             </div>
-
-            <!-- Ciudad -->
             <div>
-                <label class="block text-sky-700 font-semibold mb-1">
-                    Ciudad: <span class="text-red-500">*</span>
-                </label>
-                <select required name="ciudad"
-                        class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none bg-white">
-                    <option value="">Seleccione una ciudad</option>
-                    <option value="BARRANQUILLA">BARRANQUILLA</option>
-                    <option value="BOGOTA">BOGOTA</option>
-                    <option value="BUCARAMANGA">BUCARAMANGA</option>
-                    <option value="CALI">CALI</option>
-                    <option value="CHIA">CHIA</option>
-                    <option value="CUCUTA">CUCUTA</option>
-                    <option value="MANIZALES">MANIZALES</option>
-                    <option value="MEDELLIN">MEDELLIN</option>
-                    <option value="NEIVA">NEIVA</option>
-                    <option value="PEREIRA">PEREIRA</option>
-                    <option value="RIONEGRO">RIONEGRO</option>
-                    <option value="SOACHA">SOACHA</option>
-                    <option value="TUNJA">TUNJA</option>
-                    <option value="ARMENIA">ARMENIA</option>
-                    <option value="IBAGUE">IBAGUE</option>
-                    <option value="MONTERIA">MONTERIA</option>
-                    <option value="SINCELEJO">SINCELEJO</option>
-                    <option value="TULUA">TULUA</option>
-                    <option value="VILLAVICENCIO">VILLAVICENCIO</option>
-                    <option value="YOPAL">YOPAL</option>
-                    <option value="SANTA MARTA">SANTA MARTA</option>
-                    <option value="CARTAGENA">CARTAGENA</option>
-                    <option value="PASTO">PASTO</option>
+                <label for="dCiudad" class="label">Ciudad</label>
+                <select id="dCiudad" name="ciudad" required class="field">
+                    <option value="">Selecciona una ciudad</option>
+                    <option th:each="c : ${ciudades}" th:value="${c}" th:text="${c}"></option>
                 </select>
             </div>
-
-            <!-- Cédula -->
-            <div>
-                <label class="block text-sky-700 font-semibold mb-1">
-                    Número de identificación (C.C): <span class="text-red-500">*</span>
-                </label>
-                <input type="text" name="cedula" placeholder="Ingrese su cédula"
-                       required
-                       maxlength="13"
-                       pattern="[0-9]{6,13}"
-                       inputmode="numeric"
-                       class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"/>
-                <small class="text-gray-500">Solo números, entre 6 y 13 dígitos.</small>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="dCedula" class="label">Cédula (C.C.)</label>
+                    <input id="dCedula" type="text" name="cedula" required maxlength="12" pattern="[0-9]{6,12}"
+                           inputmode="numeric" aria-describedby="dCedulaHint" class="field"/>
+                    <span id="dCedulaHint" class="hint">De 6 a 12 dígitos.</span>
+                </div>
+                <div>
+                    <label for="dTelefono" class="label">Teléfono</label>
+                    <input id="dTelefono" type="tel" name="telefono" required pattern="[0-9]{7,15}"
+                           inputmode="tel" autocomplete="tel" aria-describedby="dTelefonoHint" class="field"/>
+                    <span id="dTelefonoHint" class="hint">Solo números, de 7 a 15.</span>
+                </div>
             </div>
-
-            <!-- Teléfono -->
-            <div>
-                <label class="block text-sky-700 font-semibold mb-1">
-                    Número de teléfono: <span class="text-red-500">*</span>
-                </label>
-                <input type="tel" name="telefono" placeholder="Ej: 573001234567"
-                       required
-                       pattern="[0-9]{7,15}"
-                       inputmode="tel"
-                       class="w-full px-3 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:outline-none"/>
-                <small class="text-gray-500">Solo números, entre 7 y 15 dígitos (formato internacional).</small>
-            </div>
-
-            <!-- Habeas Data -->
-            <label class="flex items-center space-x-2 text-sm text-gray-600">
-                <input type="checkbox" required>
-                <span>Acepto el tratamiento de mis datos personales (Habeas Data)</span>
+            <label class="flex items-start gap-2 text-sm text-slate-700">
+                <input type="checkbox" required class="mt-1 accent-brand">
+                Acepto el tratamiento de mis datos personales (Habeas Data).
             </label>
-
-            <button type="submit"
-                    class="w-full bg-sky-600 text-white py-2 rounded hover:bg-sky-700 transition">
-                Guardar
-            </button>
+            <button type="submit" class="btn-primary w-full">Guardar y continuar</button>
         </form>
     </div>
 </div>
 
-
-<nav class="px-6 py-3 flex items-center justify-between shadow-md"
-     style="background: linear-gradient(135deg, var(--al-blue-dark) 0%, var(--al-blue) 60%, var(--al-blue-light) 100%);">
-
-    <img src="/images/logo.png"
-         alt="Logo"
-         class="h-12 md:h-16 object-contain brightness-0 invert">
-
-    <div class="flex items-center gap-4 text-white text-sm font-medium">
-        <a href="/perfil"
-           class="transition hover:opacity-80">
-            Mi perfil
-        </a>
-
-        <a href="/logout"
-           class="bg-gray-200 px-4 py-1 rounded-full hover:bg-gray-300 transition text-gray-700 font-medium">
-            Cerrar Sesión
-        </a>
-    </div>
-</nav>
-
-<header class="p-8 text-center animate-slide-in">
-    <h1 class="text-3xl font-bold text-sky-800">
-        ¡Hola, <span th:text="${usuario.nombre}">Usuario</span>!
-    </h1>
-    <p class="text-sky-600 mt-1">Predicción de agotamiento de inventario</p>
-</header>
-
-<main class="max-w-6xl mx-auto w-full space-y-12 pb-12">
-
-    <!-- Sección de Inventario -->
-    <section class="px-6">
-        <h2 class="text-xl font-bold text-sky-700 mb-6 flex items-center gap-2">
-            <i class="fas fa-boxes"></i> Datos de Inventario
-        </h2>
-
-        <div class="bg-white border border-sky-200 rounded-2xl shadow-lg p-6 animate-fade-in">
-            <div class="mb-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <input type="text" id="searchInventory" placeholder="Buscar por código..."
-                       class="flex-1 px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
-
-                <!-- Selector de fecha: la simulación cubre un año completo -->
-                <input type="date" id="fechaInventario"
-                       title="Fecha del snapshot de inventario"
-                       class="px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
-
-                <button id="downloadCSV" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition">
-                    <i class="fas fa-download mr-2"></i> Descargar CSV
-                </button>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-sky-100 border-b border-sky-300">
-                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Código</th>
-                            <th class="px-4 py-2 text-left text-sky-700 font-semibold">Fecha</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Stock Actual</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Clase</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Consumo Prom.</th>
-                            <th class="px-4 py-2 text-center text-sky-700 font-semibold">Riesgo de agotamiento</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        <tr class="text-center text-gray-500">
-                            <td colspan="6" class="py-8">Cargando datos...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex justify-center items-center gap-2 mt-6" id="paginationContainer">
-            </div>
-
-            <div class="text-center text-sm text-gray-500 mt-2" id="statsInfo">
-            </div>
-        </div>
-    </section>
-
-    <!-- Comparación de políticas de reposición -->
-    <section class="px-6">
-        <h2 class="text-xl font-bold text-sky-700 mb-2 flex items-center gap-2">
-            <i class="fas fa-chart-line"></i> ¿Sirve anticiparse?
-        </h2>
-        <p class="text-sm text-gray-600 mb-6">
-            La misma demanda simulada bajo tres políticas de compra. La línea continua muestra
-            <span class="font-semibold">cuánto stock hubo</span> cada día y la punteada,
-            <span class="font-semibold">cuánto se alcanzó a vender</span>.
-            En <span class="font-semibold text-red-600">rojo</span>, pedir solo cuando el stock
-            llega a cero. En <span class="font-semibold text-emerald-700">verde</span> y
-            <span class="font-semibold text-blue-600">azul</span>, pedir además cuando el modelo
-            anticipa el agotamiento: bosque aleatorio y regresión logística sobre las mismas
-            variables.
-        </p>
-
-        <div class="bg-white border border-sky-200 rounded-2xl shadow-lg p-6 animate-fade-in">
-            <div id="avisoComparacion"
-                 class="hidden mb-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm"></div>
-
-            <div id="selectorUmbral" class="flex flex-wrap items-center gap-2 mb-4"></div>
-
-            <div id="resumenComparacion" class="flex flex-wrap gap-4 mb-6"></div>
-
-            <div class="relative" style="height: 320px;">
-                <canvas id="graficoComparacion"></canvas>
-            </div>
-
-            <p id="pieComparacion" class="text-center text-xs text-gray-500 mt-4"></p>
-        </div>
-    </section>
-
-    <!-- Asistente de IA -->
-    <section class="px-6">
-        <h2 class="text-xl font-bold text-sky-700 mb-2 flex items-center gap-2">
-            <i class="fas fa-comments"></i> Consultar al asistente
-        </h2>
-        <p class="text-sm text-gray-600 mb-6">
-            Pregunta en lenguaje natural sobre el inventario del día seleccionado.
-            El asistente analiza y prioriza; <span class="font-semibold">la decisión de
-            compra sigue siendo tuya</span>.
-        </p>
-
-        <div class="bg-white border border-sky-200 rounded-2xl shadow-lg p-6 animate-fade-in">
-            <div id="hiloChat"
-                 class="space-y-3 mb-4 max-h-96 overflow-y-auto"
-                 style="min-height: 80px;"></div>
-
-            <div id="sugerenciasChat" class="flex flex-wrap gap-2 mb-3"></div>
-
-            <div class="flex gap-2">
-                <input type="text" id="inputChat"
-                       placeholder="Escribe tu pregunta…"
-                       maxlength="1000"
-                       class="flex-1 px-4 py-2 border border-sky-300 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none">
-                <button id="btnEnviarChat"
-                        class="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
-    </section>
-
-</main>
-
-<footer class="bg-sky-800 text-white mt-auto">
-    <div class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div>
-            <h3 class="font-bold text-lg mb-2">Austral Lens</h3>
-            <p class="text-sm text-sky-200">Laboratorio óptico con más de 15 años de experiencia.</p>
-        </div>
-        <div>
-            <h3 class="font-bold text-lg mb-2">Soporte</h3>
-            <p class="text-sm text-sky-200"><i class="fas fa-envelope mr-2"></i> soporte.sistemas@australlens.com</p>
-            <p class="text-sm text-sky-200"><i class="fas fa-phone mr-2"></i> (+57) 601 514 5827</p>
-        </div>
-        <div class="text-right hidden md:block">
-            <i class="fas fa-headset text-5xl text-sky-600/50"></i>
-        </div>
-    </div>
-    <div class="bg-sky-900 text-center py-4 text-xs text-sky-400">
-        © 2026 Austral Lens Colombia · Todos los derechos reservados
-    </div>
-</footer>
+<th:block th:replace="~{fragments/layout :: asistente}"></th:block>
 
 <!-- Tabla de inventario: consume /api/inventario (Spring -> FastAPI). -->
 <script th:src="@{/menu-inventario.js}" defer></script>
-
-<!-- Comparación de políticas: gráfico con Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script th:src="@{/comparacion.js}" defer></script>
-
-<!-- Asistente de IA: marked renderiza el markdown del modelo, DOMPurify lo limpia -->
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-<script th:src="@{/asistente.js}" defer></script>
 
 </body>
 </html>

@@ -14,6 +14,7 @@ identicas al original. Correcciones:
 Uso:
     python -m inventory_ml.simulation.simulador --dias 365
     python -m inventory_ml.simulation.simulador --semilla 99 --db data/validacion.db
+    python -m inventory_ml.simulation.simulador --continuar --dias 30
 """
 
 from __future__ import annotations
@@ -107,31 +108,26 @@ def _insertar_productos(cur: sqlite3.Cursor, productos: list[dict]) -> dict[str,
     return stock_actual
 
 
-def simular(
+def _correr_dias(
+    cur: sqlite3.Cursor,
     productos: list[dict],
-    db_path: Path,
-    dias: int = DIAS_SIMULACION,
-    lead_time_dias: int = config.LEAD_TIME_DIAS,
-    semilla: int = SEMILLA,
-    fecha_inicio: datetime = FECHA_INICIO,
-) -> Path:
-    rng = random.Random(semilla)
+    stock_actual: dict[str, int],
+    pendientes: list[dict],
+    fecha_inicio: datetime,
+    dias: int,
+    lead_time_dias: int,
+    rng: random.Random,
+) -> None:
+    """Avanza la simulacion `dias` dias desde `fecha_inicio`.
 
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    if db_path.exists():
-        db_path.unlink()
-
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.executescript(DDL)
-
-    stock_actual = _insertar_productos(cur, productos)
-    pendientes: list[dict] = []
+    Muta stock_actual. Lo usan tanto la simulacion completa como
+    `continuar`, para que los dias agregados sigan exactamente las mismas reglas.
+    """
     # Indice de codigos con orden abierta. Antes se preguntaba con un
     # any(...) sobre la lista, o sea un escaneo lineal por producto y por dia:
     # con 400 productos no se notaba, con 44.582 la simulacion se vuelve
     # cuadratica y no termina.
-    codigos_pendientes: set[str] = set()
+    codigos_pendientes: set[str] = {o["codigo"] for o in pendientes}
 
     for dia in range(dias):
         fecha = fecha_inicio + timedelta(days=dia)
@@ -206,10 +202,86 @@ def simular(
         if dia % 60 == 0:
             logger.info("Dia %s | ordenes pendientes: %s", dia, len(pendientes))
 
+
+def simular(
+    productos: list[dict],
+    db_path: Path,
+    dias: int = DIAS_SIMULACION,
+    lead_time_dias: int = config.LEAD_TIME_DIAS,
+    semilla: int = SEMILLA,
+    fecha_inicio: datetime = FECHA_INICIO,
+) -> Path:
+    rng = random.Random(semilla)
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if db_path.exists():
+        db_path.unlink()
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.executescript(DDL)
+
+    stock_actual = _insertar_productos(cur, productos)
+    _correr_dias(cur, productos, stock_actual, [], fecha_inicio, dias, lead_time_dias, rng)
+
     conn.commit()
     conn.close()
     logger.info("Simulacion completada: %s productos x %s dias -> %s", len(productos), dias, db_path)
     return db_path
+
+
+def continuar(
+    db_path: Path,
+    dias: int,
+    lead_time_dias: int = config.LEAD_TIME_DIAS,
+    semilla: int = SEMILLA,
+) -> tuple[str, str]:
+    """Agrega `dias` dias nuevos despues del ultimo dia simulado.
+
+    Parte del stock del ultimo snapshot y de las ordenes aun PENDIENTES, asi
+    que los dias nuevos son continuacion real de la historia, no otra corrida.
+    Devuelve (primera_fecha_nueva, ultima_fecha_nueva).
+    """
+    if not db_path.exists():
+        raise FileNotFoundError(f"No existe {db_path}. Genera primero una simulacion completa.")
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    ultima = cur.execute("SELECT MAX(fecha) AS f FROM inventario").fetchone()["f"]
+    if ultima is None:
+        conn.close()
+        raise ValueError("La simulacion esta vacia. Genera primero una simulacion completa.")
+    inicio = datetime.fromisoformat(ultima) + timedelta(days=1)
+
+    productos = [dict(r) for r in cur.execute("SELECT * FROM productos")]
+    stock_actual = {
+        r["codigo"]: r["stock"]
+        for r in cur.execute("SELECT codigo, stock FROM inventario WHERE fecha = ?", (ultima,))
+    }
+    pendientes = [
+        {
+            "id": r["id"],
+            "codigo": r["codigo"],
+            "cantidad": r["cantidad"],
+            "fecha_llegada": datetime.fromisoformat(r["fecha_llegada"]),
+        }
+        for r in cur.execute(
+            "SELECT id, codigo, cantidad, fecha_llegada FROM ordenes_restock WHERE estado = 'PENDIENTE'"
+        )
+    ]
+
+    # Semilla atada a la fecha de arranque: continuar dos veces desde el mismo
+    # punto da lo mismo, pero cada tramo nuevo no repite la demanda del anterior.
+    rng = random.Random(f"{semilla}-{inicio.date()}")
+    _correr_dias(conn.cursor(), productos, stock_actual, pendientes, inicio, dias, lead_time_dias, rng)
+
+    conn.commit()
+    conn.close()
+    fin = inicio + timedelta(days=dias - 1)
+    logger.info("Simulacion extendida %s dias: %s -> %s", dias, inicio.date(), fin.date())
+    return inicio.date().isoformat(), fin.date().isoformat()
 
 
 def main() -> None:
@@ -222,7 +294,16 @@ def main() -> None:
     parser.add_argument("--dias", type=int, default=DIAS_SIMULACION)
     parser.add_argument("--lead-time", type=int, default=config.LEAD_TIME_DIAS)
     parser.add_argument("--semilla", type=int, default=SEMILLA)
+    parser.add_argument(
+        "--continuar",
+        action="store_true",
+        help="Agrega --dias dias despues del ultimo simulado en vez de regenerar todo",
+    )
     args = parser.parse_args()
+
+    if args.continuar:
+        continuar(args.db, args.dias, args.lead_time, args.semilla)
+        return
 
     if not args.productos.exists():
         raise SystemExit(

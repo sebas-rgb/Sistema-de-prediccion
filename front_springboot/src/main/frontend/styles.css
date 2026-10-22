@@ -1,61 +1,97 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import "flowbite/src/themes/default";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@plugin "flowbite/plugin";
-@source "../node_modules/flowbite";
+/* Piezas que se repiten en todas las plantillas */
+@layer components {
+    .field {
+        @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900
+               placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30;
+    }
+    .label { @apply mb-1 block text-sm font-medium text-slate-700; }
+    .hint  { @apply mt-1 block text-xs text-slate-500; }
 
-/* Animaciones personalizadas y utilidades */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold
+               transition-[background-color,transform] duration-150 ease-out
+               focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand
+               active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+    }
+    .btn-primary   { @apply btn bg-brand text-white hover:bg-brand-dark; }
+    .btn-secondary { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+
+    .card { @apply rounded-xl border border-slate-200 bg-white; }
+
+    .alert-ok    { @apply rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-800; }
+    .alert-error { @apply rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800; }
+
+    .link { @apply font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded; }
+}
+
+@layer base {
+    body { @apply bg-slate-50 text-slate-900 antialiased; }
+    a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+}
+
 @layer utilities {
-
-    /* Animaciones */
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-
-    @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-
-    @keyframes slideInDown {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: none; }
     }
+    .animate-fade-in { animation: fadeIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+}
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
+/* Panel del asistente: entra desde la derecha. Cerrado queda fuera de pantalla
+   y oculto (visibility) para que su sombra no asome por el borde. */
+.panel-asistente {
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 280ms;
+}
+.panel-asistente[data-abierto] {
+    transform: none;
+    visibility: visible;
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
+}
 
-    /* Clases de animación */
-    .animate-bounce { animation: bounce 2s infinite; }
-    .animate-float { animation: float 2s ease-in-out infinite; }
-    .animate-slide-in { animation: slideInDown 0.5s ease-out; }
-    .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+/* En pantallas anchas el panel abierto empuja el contenido en vez de taparlo */
+@media (min-width: 1024px) {
+    body { transition: padding-right 280ms cubic-bezier(0.32, 0.72, 0, 1); }
+    body.con-asistente { padding-right: 420px; }
+}
 
-    /* Spinner */
-    .spinner {
-        border: 3px solid rgba(51, 65, 85, 0.1);
-        border-top: 3px solid #0ea5e9;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
-    }
+/* Markdown de las respuestas del asistente */
+.md > *:first-child { margin-top: 0; }
+.md > *:last-child  { margin-bottom: 0; }
+.md p, .md ul, .md ol, .md table { margin: 0.5rem 0; }
+.md ul { list-style: disc;    padding-left: 1.25rem; }
+.md ol { list-style: decimal; padding-left: 1.25rem; }
+.md li { margin: 0.15rem 0; }
+.md h1, .md h2, .md h3, .md h4 { font-weight: 700; color: #003B75; margin: 0.75rem 0 0.35rem; }
+.md h1 { font-size: 1.05rem; }
+.md h2 { font-size: 1rem; }
+.md h3, .md h4 { font-size: 0.9rem; }
+.md strong { font-weight: 700; color: #0f172a; }
+.md code { background: #e8f4fd; color: #003B75; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.85em; }
+.md pre { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+.md pre code { background: none; color: inherit; padding: 0; }
+.md table { border-collapse: collapse; width: 100%; font-size: 0.8rem; background: #fff; }
+.md th, .md td { border-bottom: 1px solid #e2e8f0; padding: 0.35rem 0.6rem; text-align: left; }
+.md th { color: #334155; font-weight: 600; white-space: nowrap; }
+.md tr:last-child td { border-bottom: none; }
+.md blockquote { border-left: 3px solid #d0eaf8; padding-left: 0.75rem; color: #475569; margin: 0.5rem 0; }
+.md hr { border: none; border-top: 1px solid #e2e8f0; margin: 0.75rem 0; }
+.md a { color: #0064AF; text-decoration: underline; }
+/* la tabla puede ser mas ancha que la burbuja */
+.burbuja-md { overflow-x: auto; }
 
-    /* Fondo repetitivo */
-    body {
-        background-image: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><path d="M30 0 L60 30 L30 60 L0 30 Z" fill="%2387ceeb" opacity="0.1"/></svg>');
-        background-size: 60px 60px;
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
     }
 }

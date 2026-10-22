@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head><th:block th:replace="~{fragments/layout :: cabeza('Simulador')}"></th:block></head>
+<body class="flex min-h-screen flex-col">
+
+<header th:replace="~{fragments/layout :: barra('simulador')}"></header>
+
+<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Simulador de inventario</h1>
+        <p id="resumenSimulacion" class="mt-1 text-sm text-slate-600">Cargando estado…</p>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+        <!-- Días nuevos: la acción frecuente va primero -->
+        <form data-tarea="agregar_dias" class="card space-y-4 p-4 sm:p-6">
+            <div>
+                <h2 class="text-lg font-semibold text-slate-900">Simular días nuevos</h2>
+                <p class="text-sm text-slate-600">Continúa desde el último día con el stock y los pedidos
+                    pendientes que había. Lo ya simulado no cambia.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" name="dias" value="1" class="btn-secondary">+1 día</button>
+                <button type="submit" name="dias" value="7" class="btn-secondary">+7 días</button>
+                <button type="submit" name="dias" value="30" class="btn-secondary">+30 días</button>
+            </div>
+            <div class="flex items-end gap-2">
+                <div class="flex-1">
+                    <label for="diasNuevos" class="label">Otra cantidad de días</label>
+                    <input id="diasNuevos" name="dias" type="number" min="1" max="730" value="90" class="field">
+                </div>
+                <button type="submit" class="btn-primary">Simular</button>
+            </div>
+        </form>
+
+        <!-- Regenerar: destructivo, con confirmación -->
+        <form data-tarea="simular_anio"
+              data-confirmar="Esto reemplaza TODA la simulación actual por una nueva. Los días agregados se pierden. ¿Continuar?"
+              class="card space-y-4 p-4 sm:p-6">
+            <div>
+                <h2 class="text-lg font-semibold text-slate-900">Regenerar desde cero</h2>
+                <p class="text-sm text-slate-600">Crea una simulación nueva desde el 1 de enero de 2026.
+                    La actual se sigue mostrando hasta que la nueva termine.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="diasAnio" class="label">Días</label>
+                    <input id="diasAnio" name="dias" type="number" min="30" max="730" value="365" class="field">
+                </div>
+                <div>
+                    <label for="semilla" class="label">Semilla</label>
+                    <input id="semilla" name="semilla" type="number" min="0" value="42"
+                           aria-describedby="semillaHint" class="field">
+                    <span id="semillaHint" class="hint">La misma semilla repite la misma demanda.</span>
+                </div>
+            </div>
+            <button type="submit" class="btn border border-red-300 bg-white text-red-700 hover:bg-red-50">
+                <i class="fas fa-rotate" aria-hidden="true"></i> Regenerar simulación
+            </button>
+        </form>
+    </div>
+
+    <p class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <i class="fas fa-circle-info mr-1" aria-hidden="true"></i>
+        El modelo no aprende solo de los días nuevos. Después de simular, ve a
+        <a href="/modelos" class="font-semibold underline">Modelos</a> para reentrenarlo y recalcular la comparación.
+    </p>
+
+    <section aria-labelledby="tituloTarea" class="card p-4 sm:p-6">
+        <h2 id="tituloTarea" class="mb-3 text-lg font-semibold text-slate-900">Última tarea</h2>
+        <div id="tarea" aria-live="polite"></div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: pie}"></footer>
+<th:block th:replace="~{fragments/layout :: asistente}"></th:block>
+
+<script>
+    window.pintarEstado = function (estado) {
+        const s = estado.simulacion;
+        document.getElementById("resumenSimulacion").innerHTML = s
+            ? "Simulación del <strong>" + s.primera_fecha + "</strong> al <strong>" + s.ultima_fecha +
+              "</strong> · " + s.dias_disponibles + " días"
+            : "Todavía no hay simulación. Usa <strong>Regenerar desde cero</strong> para crear la primera.";
+    };
+</script>
+<script th:src="@{/pipeline.js}" defer></script>
+</body>
+</html>

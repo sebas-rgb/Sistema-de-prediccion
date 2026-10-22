@@ -1,4 +1,4 @@
 politica,etiqueta,dias_agotado,dias_agotado_utiles,unidades_no_servidas,fill_rate,pedidos,stock_promedio,mejora_servicio_pct
 reactiva,Sin anticipación,28183,25273,83716,0.4526,980,19.2,0.0
-predictiva@bosque@0.8,Con bosque aleatorio (80%),17383,14473,48014,0.6861,1347,26.4,42.6
-predictiva@logistica@0.8,Con regresión logística (80%),20675,17765,56074,0.6334,1299,23.2,33.0
+predictiva@bosque@0.5,Con bosque aleatorio (50%),14593,11683,45050,0.7054,1430,27.9,46.2
+predictiva@logistica@0.5,Con regresión logística (50%),16894,13984,52871,0.6543,1396,25.2,36.8

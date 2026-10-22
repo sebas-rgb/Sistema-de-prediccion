@@ -10,6 +10,9 @@ let graficoComparacion = null;
 
 const color = (i) => COLORES[i % COLORES.length];
 
+const esc = (v) =>
+  String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
 function pintarResumen(data) {
   const cont = document.getElementById("resumenComparacion");
   const base = data.politicas[0];
@@ -24,13 +27,13 @@ function pintarResumen(data) {
           : menos.toLocaleString() + " días-producto menos · " +
             (p.pedidos - base.pedidos) + " pedidos extra";
 
+      // El color solo enlaza con la linea del grafico; el nombre va en texto
       return (
-        '<div class="flex-1 min-w-[180px] p-4 rounded-xl border" style="border-color:' + c + '33">' +
-          '<div class="text-xs uppercase tracking-wide text-gray-500">' + p.etiqueta + "</div>" +
-          '<div class="text-2xl font-bold" style="color:' + c + '">' +
-            (p.fillRate * 100).toFixed(1) + "%</div>" +
-          '<div class="text-xs text-gray-500">demanda atendida</div>' +
-          '<div class="text-xs text-gray-500 mt-1">' + detalle + "</div>" +
+        '<div class="border-l-4 pl-3" style="border-color:' + c + '">' +
+          '<div class="text-sm font-medium text-slate-700">' + esc(p.etiqueta) + "</div>" +
+          '<div class="text-3xl font-bold tabular-nums text-slate-900">' +
+            (p.fillRate * 100).toFixed(1) + '%<span class="ml-1 text-sm font-normal text-slate-600">de la demanda atendida</span></div>' +
+          '<div class="mt-1 text-sm text-slate-600">' + esc(detalle) + "</div>" +
         "</div>"
       );
     })
@@ -68,6 +71,8 @@ function pintarGrafico(data) {
     });
   });
 
+  Chart.defaults.font.family = "Inter, ui-sans-serif, system-ui, sans-serif";
+  Chart.defaults.color = "#475569";
   graficoComparacion = new Chart(ctx, {
     type: "line",
     data: { labels: data.fechas, datasets },
@@ -111,7 +116,7 @@ async function cargarComparacion() {
     const res = await fetch("/api/inventario/experimento");
     if (res.status === 503) {
       aviso.textContent =
-        "Comparación no generada. Ejecuta: python -m inventory_ml.simulation.experimento";
+        "La comparación aún no se ha generado. Pídele al equipo técnico que ejecute: python -m inventory_ml.simulation.experimento";
       aviso.classList.remove("hidden");
       return;
     }
@@ -127,7 +132,7 @@ async function cargarComparacion() {
       " · " + data.origenModelo + ", no validado con datos reales";
   } catch (err) {
     console.error("Error en cargarComparacion:", err);
-    aviso.textContent = "No se pudo cargar la comparación: " + err.message;
+    aviso.textContent = "No se pudo cargar la comparación (" + err.message + "). Recarga la página para intentarlo de nuevo.";
     aviso.classList.remove("hidden");
   }
 }

@@ -13,16 +13,29 @@ let fechaActual = null;
 let busqueda = "";
 
 const RIESGO_ESTILO = {
-  ALTO:  "bg-red-100 text-red-700",
-  MEDIO: "bg-yellow-100 text-yellow-700",
-  BAJO:  "bg-green-100 text-green-700",
+  ALTO:  "bg-red-50 text-red-800 ring-red-200",
+  MEDIO: "bg-amber-50 text-amber-900 ring-amber-200",
+  BAJO:  "bg-green-50 text-green-800 ring-green-200",
 };
+
+// Todo lo que viene de la API pasa por aqui antes de entrar a innerHTML
+const esc = (v) =>
+    String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+
+function filaMensaje(texto, clase) {
+  const body = document.getElementById("tableBody");
+  body.innerHTML = '<tr><td colspan="6" class="py-8 text-center ' + clase + '">' + esc(texto) + "</td></tr>";
+  body.setAttribute("aria-busy", "false");
+}
 
 async function cargarInventario() {
   const params = new URLSearchParams({ pagina: paginaActual, tamanoPagina: TAM_PAGINA });
   if (fechaActual) params.set("fecha", fechaActual);
   if (busqueda) params.set("codigo", busqueda);
 
+  document.getElementById("tableBody").setAttribute("aria-busy", "true");
   try {
     const res = await fetch("/api/inventario?" + params);
     if (res.status === 503) return mostrarError("Servicio de prediccion no disponible");
@@ -41,48 +54,50 @@ async function cargarInventario() {
 }
 
 function mostrarError(msg) {
-  document.getElementById("tableBody").innerHTML =
-      '<tr class="text-center text-red-500"><td colspan="6" class="py-8">' + msg + "</td></tr>";
+  filaMensaje(msg + ". Recarga la página o inténtalo en unos minutos.", "text-red-700");
   document.getElementById("paginationContainer").innerHTML = "";
 }
 
 function renderizar(data) {
   fechaActual = data.fecha;
+  window.fechaInventario = data.fecha; // el asistente pregunta sobre esta fecha
   const body = document.getElementById("tableBody");
 
   if (!data.items.length) {
-    body.innerHTML =
-        '<tr class="text-center text-gray-500"><td colspan="6" class="py-8">No hay resultados</td></tr>';
+    filaMensaje(busqueda ? "Ningún código coincide con «" + busqueda + "»." : "No hay productos para esta fecha.", "text-slate-500");
   } else {
     body.innerHTML = data.items
         .map(function (row) {
           const pct = (row.probabilidadAgotamiento * 100).toFixed(1);
           const estilo = RIESGO_ESTILO[row.nivelRiesgo] || "bg-gray-100 text-gray-700";
-          const stockColor = row.stockActual <= 0 ? "text-red-600" : "text-green-600";
+          const sinStock = row.stockActual <= 0;
           return (
-              '<tr class="border-b hover:bg-sky-50 transition-colors">' +
-              '<td class="px-4 py-2 font-mono text-sky-600">' + row.codigo + "</td>" +
-              '<td class="px-4 py-2 text-gray-600">' + row.fecha + "</td>" +
-              '<td class="px-4 py-2 text-center font-semibold ' + stockColor + '">' + row.stockActual + "</td>" +
-              '<td class="px-4 py-2 text-center"><span class="bg-sky-100 text-sky-700 px-2 py-1 rounded">' + row.clase + "</span></td>" +
-              '<td class="px-4 py-2 text-center">' + row.consumoPromedio.toFixed(2) + "</td>" +
-              '<td class="px-4 py-2 text-center"><span class="' + estilo + ' px-2 py-1 rounded font-semibold">' +
-              pct + "% · " + row.nivelRiesgo + "</span></td>" +
+              '<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">' +
+              '<td class="px-4 py-2.5 font-medium tabular-nums">' + esc(row.codigo) + "</td>" +
+              '<td class="px-4 py-2.5 text-slate-600 tabular-nums">' + esc(row.fecha) + "</td>" +
+              '<td class="px-4 py-2.5 text-right tabular-nums ' + (sinStock ? "font-semibold text-red-700" : "") + '">' +
+              nf.format(row.stockActual) + (sinStock ? " · agotado" : "") + "</td>" +
+              '<td class="px-4 py-2.5">' + esc(row.clase) + "</td>" +
+              '<td class="px-4 py-2.5 text-right tabular-nums">' + nf.format(row.consumoPromedio) + "</td>" +
+              '<td class="px-4 py-2.5"><span class="' + estilo + ' inline-block whitespace-nowrap rounded-md px-2 py-0.5 font-medium ring-1 ring-inset tabular-nums">' +
+              esc(row.nivelRiesgo) + " · " + pct + "%</span></td>" +
               "</tr>"
           );
         })
         .join("");
+    body.setAttribute("aria-busy", "false");
   }
 
   renderizarPaginacion(data);
 
   const experimental = data.estadoValidacion && data.estadoValidacion !== "VALIDADO";
   document.getElementById("statsInfo").innerHTML =
-      "Snapshot del <strong>" + data.fecha + "</strong> · " +
-      "<strong>" + data.total + "</strong> productos · modelo " + data.versionModelo +
+      "Inventario del <strong>" + esc(data.fecha) + "</strong> · " +
+      "<strong>" + nf.format(data.total) + "</strong> productos · modelo " + esc(data.versionModelo) +
       (experimental
-          ? ' <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Modelo ' +
-          data.origenModelo + " · no validado con datos reales</span>"
+          ? ' <span class="ml-1 inline-block rounded-md bg-amber-50 px-2 py-0.5 text-amber-900 ring-1 ring-inset ring-amber-200">' +
+          '<i class="fas fa-triangle-exclamation mr-1" aria-hidden="true"></i>Modelo ' +
+          esc(data.origenModelo) + ", no validado con datos reales</span>"
           : "");
 }
 
@@ -93,8 +108,12 @@ function renderizarPaginacion(data) {
 
   let html = "";
   const btn = (p, txt, activo) =>
-      '<button onclick="irPagina(' + p + ')" class="px-3 py-2 rounded ' +
-      (activo ? "bg-sky-600 text-white" : "bg-gray-200 hover:bg-gray-300") + '">' + txt + "</button>";
+      '<button type="button" data-pagina="' + p + '"' +
+      (activo ? ' aria-current="page"' : "") +
+      (typeof txt === "number" ? ' aria-label="Página ' + p + '"' : "") +
+      ' class="btn min-w-[2.5rem] px-3 py-1.5 text-sm ' +
+      (activo ? "bg-brand text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50") + '">' +
+      txt + "</button>";
 
   if (data.pagina > 1) html += btn(data.pagina - 1, "Anterior", false);
   for (let i = Math.max(1, data.pagina - 2); i <= Math.min(total, data.pagina + 2); i++) {
@@ -104,11 +123,13 @@ function renderizarPaginacion(data) {
   cont.innerHTML = html;
 }
 
-window.irPagina = function (p) {
-  paginaActual = p;
+document.getElementById("paginationContainer").addEventListener("click", function (e) {
+  const b = e.target.closest("button[data-pagina]");
+  if (!b) return;
+  paginaActual = Number(b.dataset.pagina);
   cargarInventario();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
+  document.getElementById("tituloInventario").closest("section").scrollIntoView({ block: "start" });
+});
 
 // Busqueda: la filtra el servidor, con debounce para no disparar una peticion por tecla
 let debounce;
@@ -131,7 +152,7 @@ document.getElementById("downloadCSV").addEventListener("click", async function 
   const boton = this;
   const textoOriginal = boton.innerHTML;
   boton.disabled = true;
-  boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generando...';
+  boton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Generando…';
 
   try {
     const filas = [];
@@ -177,16 +198,26 @@ document.getElementById("downloadCSV").addEventListener("click", async function 
     URL.revokeObjectURL(url);
 
     if (filas.length < total) {
-      alert("Se exportaron " + filas.length + " de " + total + " registros (limite de seguridad).");
+      avisoExport("Se exportaron " + filas.length + " de " + total +
+          " productos (máximo por descarga). Filtra por código para bajar el resto.", false);
     }
   } catch (err) {
     console.error(err);
-    alert("No se pudo generar el CSV.");
+    avisoExport("No se pudo generar el CSV. Inténtalo de nuevo en unos minutos.", true);
   } finally {
     boton.disabled = false;
     boton.innerHTML = textoOriginal;
   }
 });
+
+function avisoExport(texto, esError) {
+  const p = document.createElement("p");
+  p.setAttribute("role", esError ? "alert" : "status");
+  p.className = "mt-1 text-sm " + (esError ? "text-red-700" : "text-amber-900");
+  p.textContent = texto;
+  document.getElementById("statsInfo").after(p);
+  setTimeout(() => p.remove(), 8000);
+}
 
 // Selector de fecha: la simulacion cubre un ano completo
 fetch("/api/inventario/fechas")

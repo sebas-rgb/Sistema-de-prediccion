@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head><th:block th:replace="~{fragments/layout :: cabeza('Análisis')}"></th:block></head>
+<body class="flex min-h-screen flex-col">
+
+<header th:replace="~{fragments/layout :: barra('analisis')}"></header>
+
+<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+    <h1 class="text-2xl font-bold text-slate-900">¿Sirve anticiparse?</h1>
+    <p class="mt-1 mb-6 max-w-3xl text-sm text-slate-600">
+        La misma demanda simulada bajo varias políticas de compra: pedir solo cuando el stock llega
+        a cero, o pedir además cuando un modelo anticipa el agotamiento. La línea continua es el
+        <strong>stock disponible</strong> cada día y la punteada, <strong>lo que se alcanzó a vender</strong>.
+        Para recalcularla con los modelos actuales, ve a <a href="/modelos" class="link">Modelos</a>.
+    </p>
+
+    <div class="card p-4 sm:p-6">
+        <p id="avisoComparacion" role="alert"
+           class="mb-4 hidden rounded-lg bg-amber-50 p-3 text-sm text-amber-900"></p>
+
+        <div id="resumenComparacion" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+        <div class="relative h-96">
+            <canvas id="graficoComparacion" role="img"
+                    aria-label="Stock disponible y unidades vendidas por día para cada política de compra"></canvas>
+        </div>
+
+        <p id="pieComparacion" class="mt-4 text-center text-xs text-slate-500"></p>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: pie}"></footer>
+<th:block th:replace="~{fragments/layout :: asistente}"></th:block>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script th:src="@{/comparacion.js}" defer></script>
+</body>
+</html>
