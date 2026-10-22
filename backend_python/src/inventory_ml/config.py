@@ -32,6 +32,8 @@ except ImportError:  # pragma: no cover
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 DB_PATH = Path(os.environ.get("DB_PATH", DATA_DIR / "inventario.db"))
+# Perfiles reales por sede (ingestion/sedes.py). Aparte de DB_PATH a proposito.
+SEDES_DB_PATH = Path(os.environ.get("SEDES_DB_PATH", DATA_DIR / "sedes.db"))
 ARTIFACTS_DIR = Path(os.environ.get("ARTIFACTS_DIR", PROJECT_ROOT / "artifacts"))
 MODELS_DIR = ARTIFACTS_DIR / "models"
 
@@ -78,10 +80,30 @@ MAX_BATCH_SIZE = int(os.environ.get("MAX_BATCH_SIZE", 500))
 # ---------------------------------------------------------------
 # La clave NUNCA se escribe en codigo ni se envia al navegador.
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
+# Gemini por su endpoint compatible con OpenAI: el cliente no cambia, y volver
+# a OpenAI/Groq es solo cambiar estas dos variables.
+LLM_BASE_URL = os.environ.get(
+    "LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"
+)
 # Los nombres de modelo cambian seguido; se elige por entorno, no en codigo.
-LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-5.6-luna")
-LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", 30))
+# Free tier por modelo: los Flash dan 5/min y 20/dia; los Flash Lite, 15/min
+# y 500/dia. Cada pregunta gasta 2-4 llamadas, asi que el principal es un Lite.
+LLM_MODEL = os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite")
+# Si el principal responde 503 (saturado) o 429 (cuota agotada) se prueban
+# estos en orden, separados por coma. La cuota es POR MODELO, asi que
+# encadenarlos la suma. Vacio = sin respaldo.
+LLM_MODELOS_RESPALDO = [
+    m.strip()
+    for m in os.environ.get(
+        "LLM_MODELOS_RESPALDO",
+        "gemini-3.1-flash-lite,gemini-3.6-flash,gemini-3-flash-preview,gemini-flash-latest",
+    ).split(",")
+    if m.strip()
+]
+# Por llamada. Debe quedar holgado bajo el read timeout de Spring
+# (PredictionClient), que cubre la pregunta ENTERA con todas sus vueltas.
+# Los Lite llegan a tardar 20 s por llamada cuando Google esta cargado.
+LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", 40))
 # 800 truncaba las respuestas: los modelos de razonamiento (gpt-oss, o-series)
 # gastan tokens de razonamiento contra este mismo presupuesto. Subirlo mas
 # tampoco es gratis: Groq cuenta prompt + max_tokens contra el limite por

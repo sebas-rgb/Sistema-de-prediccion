@@ -46,74 +46,113 @@ function pensando() {
   return div;
 }
 
+// La pregunta corre en segundo plano en Python: aqui solo se encola y se
+// pregunta "¿ya?" cada pocos segundos. El id va a sessionStorage, asi que si
+// cambias de pagina a mitad de respuesta, la pagina nueva retoma la espera.
+// (Antes era un solo fetch de hasta un minuto: al navegar se cancelaba y el
+// chat guardaba "Failed to fetch".)
+const CLAVE_PENDIENTE = "asistente.pendiente";
+const INTERVALO_MS = 2000;
+const ESPERA_MAX_MS = 4 * 60 * 1000;
+
+function bloquear(si) {
+  document.getElementById("inputChat").disabled = si;
+  document.getElementById("btnEnviarChat").disabled = si;
+}
+
+function cerrarEspera(nodos) {
+  const hilo = document.getElementById("hiloChat");
+  document.getElementById("burbujaPensando")?.remove();
+  nodos.forEach((n) => hilo.appendChild(n));
+  try { sessionStorage.removeItem(CLAVE_PENDIENTE); } catch (e) {}
+  bloquear(false);
+  hilo.scrollTop = hilo.scrollHeight;
+  guardarHilo();
+  document.getElementById("inputChat").focus();
+}
+
+// Python devuelve el resultado tal cual (snake_case): Spring solo lo reenvia.
+function nodosRespuesta(data) {
+  const nodos = [burbuja(data.respuesta, false)];
+
+  const pie = document.createElement("div");
+  pie.className = "text-xs text-slate-500 px-2";
+  pie.textContent =
+    "Contexto: inventario del " + data.fecha_contexto +
+    " · modelo predictivo " + data.version_modelo_prediccion +
+    " (" + data.origen_modelo + ", no validado) · " + data.modelo_llm +
+    (data.tokens_entrada ? " · " + (data.tokens_entrada + data.tokens_salida) + " tokens" : "");
+  nodos.push(pie);
+
+  // Evidencia visible de que es un agente: que consulto por su cuenta.
+  if (data.herramientas_usadas && data.herramientas_usadas.length) {
+    const usadas = document.createElement("div");
+    usadas.className = "flex flex-wrap gap-1 px-2 mt-1";
+    data.herramientas_usadas.forEach((h) => {
+      const chip = document.createElement("span");
+      chip.className = "px-2 py-0.5 text-xs rounded-md bg-slate-100 text-slate-700";
+      chip.innerHTML = '<i class="fas fa-wrench mr-1" aria-hidden="true"></i>';
+      chip.append(h);
+      usadas.appendChild(chip);
+    });
+    nodos.push(usadas);
+  }
+  return nodos;
+}
+
+async function esperarRespuesta(id, desde) {
+  while (Date.now() - desde < ESPERA_MAX_MS) {
+    await new Promise((r) => setTimeout(r, INTERVALO_MS));
+    let res;
+    try {
+      res = await fetch("/api/inventario/asistente/tareas/" + id);
+    } catch (err) {
+      continue; // un fallo de red puntual no es el final: se reintenta
+    }
+    if (res.status === 404) {
+      return cerrarEspera([burbuja("Se perdió la pregunta porque el servidor se reinició. Vuelve a enviarla.", false)]);
+    }
+    if (!res.ok) continue;
+    const t = await res.json();
+    if (t.estado === "OK") return cerrarEspera(nodosRespuesta(t.resultado));
+    if (t.estado === "ERROR") {
+      return cerrarEspera([burbuja("El asistente no pudo responder: " + t.detalle + " Vuelve a intentarlo en un momento.", false)]);
+    }
+  }
+  cerrarEspera([burbuja("El asistente tardó demasiado en responder. Vuelve a enviar la pregunta.", false)]);
+}
+
 async function enviarPregunta(texto) {
   const hilo = document.getElementById("hiloChat");
-  const input = document.getElementById("inputChat");
-  const boton = document.getElementById("btnEnviarChat");
-
   hilo.appendChild(burbuja(texto, true));
   hilo.appendChild(pensando());
   hilo.scrollTop = hilo.scrollHeight;
-  input.value = "";
-  input.disabled = true;
-  boton.disabled = true;
+  document.getElementById("inputChat").value = "";
+  bloquear(true);
+  guardarHilo();
 
   try {
-    const res = await fetch("/api/inventario/asistente", {
+    const res = await fetch("/api/inventario/asistente/tareas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // la fecha la publica la pagina de Inventario; en las demas se usa la ultima
       body: JSON.stringify({ pregunta: texto, fecha: window.fechaInventario || null }),
     });
-
-    document.getElementById("burbujaPensando")?.remove();
-
-    if (res.status === 503) {
-      hilo.appendChild(
-        burbuja(
-          "El asistente no está disponible ahora. Si sigue así, pide al equipo técnico que revise que FastAPI esté corriendo y que LLM_API_KEY esté configurada.",
-          false
-        )
-      );
-    } else if (!res.ok) {
-      hilo.appendChild(burbuja("El asistente respondió con un error (" + res.status + "). Vuelve a enviar la pregunta.", false));
-    } else {
-      const data = await res.json();
-      hilo.appendChild(burbuja(data.respuesta, false));
-
-      const pie = document.createElement("div");
-      pie.className = "text-xs text-slate-500 px-2";
-      pie.textContent =
-        "Contexto: inventario del " + data.fechaContexto +
-        " · modelo predictivo " + data.versionModeloPrediccion +
-        " (" + data.origenModelo + ", no validado)" +
-        (data.tokensEntrada ? " · " + (data.tokensEntrada + data.tokensSalida) + " tokens" : "");
-      hilo.appendChild(pie);
-
-      // Evidencia visible de que es un agente: que consulto por su cuenta.
-      if (data.herramientasUsadas && data.herramientasUsadas.length) {
-        const usadas = document.createElement("div");
-        usadas.className = "flex flex-wrap gap-1 px-2 mt-1";
-        data.herramientasUsadas.forEach((h) => {
-          const chip = document.createElement("span");
-          chip.className = "px-2 py-0.5 text-xs rounded-md bg-slate-100 text-slate-700";
-          chip.innerHTML = '<i class="fas fa-wrench mr-1" aria-hidden="true"></i>';
-          chip.append(h);
-          usadas.appendChild(chip);
-        });
-        hilo.appendChild(usadas);
-      }
+    if (!res.ok) {
+      return cerrarEspera([burbuja(
+        res.status === 503
+          ? "El asistente no está disponible ahora. Si sigue así, revisa que FastAPI esté corriendo."
+          : "El asistente respondió con un error (" + res.status + "). Vuelve a enviar la pregunta.",
+        false
+      )]);
     }
+    const { id } = await res.json();
+    const desde = Date.now();
+    try { sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify({ id, desde })); } catch (e) {}
+    esperarRespuesta(id, desde);
   } catch (err) {
-    document.getElementById("burbujaPensando")?.remove();
     console.error("Error en el asistente:", err);
-    hilo.appendChild(burbuja("No se pudo contactar el asistente (" + err.message + "). Revisa tu conexión y vuelve a intentarlo.", false));
-  } finally {
-    input.disabled = false;
-    boton.disabled = false;
-    input.focus();
-    hilo.scrollTop = hilo.scrollHeight;
-    guardarHilo();
+    cerrarEspera([burbuja("No se pudo contactar el asistente. Revisa tu conexión y vuelve a intentarlo.", false)]);
   }
 }
 
@@ -142,7 +181,15 @@ function abrirPanel(abrir, enfocar = true) {
 function iniciarChat() {
   const hilo = document.getElementById("hiloChat");
   try { hilo.innerHTML = sessionStorage.getItem(CLAVE_HILO) || ""; } catch (e) {}
-  document.getElementById("burbujaPensando")?.remove(); // si se cambio de pagina a mitad de respuesta
+  document.getElementById("burbujaPensando")?.remove();
+  // Si se cambio de pagina a mitad de respuesta, se retoma la espera
+  let pendiente = null;
+  try { pendiente = JSON.parse(sessionStorage.getItem(CLAVE_PENDIENTE) || "null"); } catch (e) {}
+  if (pendiente) {
+    hilo.appendChild(pensando());
+    bloquear(true);
+    esperarRespuesta(pendiente.id, pendiente.desde);
+  }
 
   document.getElementById("abrirAsistente").addEventListener("click", () => abrirPanel(true));
   document.getElementById("cerrarAsistente").addEventListener("click", () => abrirPanel(false));

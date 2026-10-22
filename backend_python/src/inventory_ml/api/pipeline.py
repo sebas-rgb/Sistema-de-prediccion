@@ -38,7 +38,7 @@ class TareaRequest(BaseModel):
     tipo: Tipo
     dias: int = Field(30, ge=1, le=730, description="simular_anio / agregar_dias")
     semilla: int = Field(42, ge=0)
-    algoritmo: Literal["rf", "logistica", "xgb"] = "rf"
+    algoritmo: Literal["rf", "logistica", "xgb", "mlp"] = "rf"
     umbral: float = Field(0.8, gt=0, lt=1, description="experimento")
 
 

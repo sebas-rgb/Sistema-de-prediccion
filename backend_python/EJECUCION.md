@@ -29,6 +29,11 @@ python -m inventory_ml.training.train
 
 # 4. Reportar: -> artifacts/reports/*.csv (los que hoy lee Java)
 python -m inventory_ml.reporting.riesgo
+
+# Opcional, independiente de 1-4. Riesgo por sede: Excel diarios reales ->
+# perfil (sede, producto) -> data/sedes.db (~2 min). Lo puntua el modelo activo
+# sin reentrenar; habilita el selector "Sede" del inventario.
+python -m inventory_ml.ingestion.sedes
 ```
 
 Cada paso lee la salida del anterior desde rutas por defecto de `config.py`.

@@ -57,7 +57,10 @@ public class PredictionClient {
     private static SimpleClientHttpRequestFactory factoriaConTimeouts() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
-        factory.setReadTimeout(Duration.ofSeconds(45));  // el asistente tarda mas
+        // El asistente encadena varias llamadas al LLM (hasta 30 s cada una en
+        // Python); con 45 s Spring cortaba antes que Python y el navegador se
+        // quedaba sin respuesta util.
+        factory.setReadTimeout(Duration.ofSeconds(180));
         return factory;
     }
 
@@ -150,9 +153,11 @@ public class PredictionClient {
      * Pagina de inventario con prediccion.
      *
      * @param fecha null = ultima fecha disponible
+     * @param sede  null = vista general; con sede, Python ignora la fecha
      */
     public Optional<InventarioDTO.Pagina> inventario(LocalDate fecha,
                                                      String codigo,
+                                                     String sede,
                                                      int pagina,
                                                      int tamanoPagina) {
         try {
@@ -166,6 +171,9 @@ public class PredictionClient {
                         }
                         if (codigo != null && !codigo.isBlank()) {
                             uriBuilder.queryParam("codigo", codigo);
+                        }
+                        if (sede != null && !sede.isBlank()) {
+                            uriBuilder.queryParam("sede", sede);
                         }
                         return uriBuilder.build();
                     })

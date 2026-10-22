@@ -11,6 +11,7 @@ const TAM_PAGINA = 10;
 let paginaActual = 1;
 let fechaActual = null;
 let busqueda = "";
+let sedeActual = ""; // "" = vista general (simulacion); con sede, ultimo inventario real
 
 const RIESGO_ESTILO = {
   ALTO:  "bg-red-50 text-red-800 ring-red-200",
@@ -34,6 +35,7 @@ async function cargarInventario() {
   const params = new URLSearchParams({ pagina: paginaActual, tamanoPagina: TAM_PAGINA });
   if (fechaActual) params.set("fecha", fechaActual);
   if (busqueda) params.set("codigo", busqueda);
+  if (sedeActual) params.set("sede", sedeActual);
 
   document.getElementById("tableBody").setAttribute("aria-busy", "true");
   try {
@@ -59,8 +61,12 @@ function mostrarError(msg) {
 }
 
 function renderizar(data) {
-  fechaActual = data.fecha;
-  window.fechaInventario = data.fecha; // el asistente pregunta sobre esta fecha
+  // La fecha de una sede es la del ultimo Excel real, no la de la simulacion:
+  // no debe pisar la fecha elegida para la vista general.
+  if (!sedeActual) {
+    fechaActual = data.fecha;
+    window.fechaInventario = data.fecha; // el asistente pregunta sobre esta fecha
+  }
   const body = document.getElementById("tableBody");
 
   if (!data.items.length) {
@@ -92,7 +98,9 @@ function renderizar(data) {
 
   const experimental = data.estadoValidacion && data.estadoValidacion !== "VALIDADO";
   document.getElementById("statsInfo").innerHTML =
-      "Inventario del <strong>" + esc(data.fecha) + "</strong> · " +
+      (sedeActual
+          ? "Sede <strong>" + esc(sedeActual) + "</strong> · inventario real del <strong>"
+          : "Inventario del <strong>") + esc(data.fecha) + "</strong> · " +
       "<strong>" + nf.format(data.total) + "</strong> productos · modelo " + esc(data.versionModelo) +
       (experimental
           ? ' <span class="ml-1 inline-block rounded-md bg-amber-50 px-2 py-0.5 text-amber-900 ring-1 ring-inset ring-amber-200">' +
@@ -163,6 +171,7 @@ document.getElementById("downloadCSV").addEventListener("click", async function 
       const params = new URLSearchParams({ pagina: pagina, tamanoPagina: TAM_EXPORT });
       if (fechaActual) params.set("fecha", fechaActual);
       if (busqueda) params.set("codigo", busqueda);
+      if (sedeActual) params.set("sede", sedeActual);
 
       const res = await fetch("/api/inventario?" + params);
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -193,7 +202,7 @@ document.getElementById("downloadCSV").addEventListener("click", async function 
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "inventario_" + (fechaActual || "actual") + ".csv";
+    a.download = "inventario_" + (sedeActual ? sedeActual + "_" : "") + (fechaActual || "actual") + ".csv";
     a.click();
     URL.revokeObjectURL(url);
 
@@ -231,6 +240,23 @@ fetch("/api/inventario/fechas")
       input.value = rango.ultimaFecha;
       input.addEventListener("change", function (e) {
         fechaActual = e.target.value;
+        paginaActual = 1;
+        cargarInventario();
+      });
+    });
+
+// Sedes: cada una se puntua con su propio stock y consumo. Si Python aun no
+// genero los perfiles (ingestion/sedes.py), el selector se queda en "General".
+fetch("/api/inventario/sedes")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data) return;
+      const select = document.getElementById("sedeInventario");
+      data.sedes.forEach(function (s) { select.add(new Option(s, s)); });
+      select.addEventListener("change", function (e) {
+        sedeActual = e.target.value;
+        // Por sede solo existe el ultimo snapshot real: la fecha no aplica
+        document.getElementById("fechaInventario").disabled = Boolean(sedeActual);
         paginaActual = 1;
         cargarInventario();
       });

@@ -85,6 +85,14 @@ def consultar_producto(
     }
 
 
+def _producto(fecha: date | None, codigo: str) -> dict | None:
+    """Coincidencia exacta si la hay; si no, la primera parcial."""
+    _, _, registros = estado_en_fecha(
+        config.DB_PATH, fecha=fecha, codigo=codigo, limite=LIMITE_CONSULTA
+    )
+    return next((r for r in registros if r["codigo"] == codigo), registros[0]) if registros else None
+
+
 def simular_escenario(
     predictor: Predictor,
     fecha: date | None,
@@ -112,14 +120,9 @@ def simular_escenario(
     if any(n < 0 for n in niveles_stock):
         return {"error": "Los niveles de stock no pueden ser negativos."}
 
-    _, _, registros = estado_en_fecha(
-        config.DB_PATH, fecha=fecha, codigo=codigo, limite=LIMITE_CONSULTA
-    )
-    if not registros:
+    actual = _producto(fecha, codigo)
+    if actual is None:
         return {"error": f"No existe ningun producto con codigo '{codigo}'."}
-
-    # Coincidencia exacta si la hay; si no, la primera parcial.
-    actual = next((r for r in registros if r["codigo"] == codigo), registros[0])
     filas = [actual] + [{**actual, "stock_actual": n} for n in niveles_stock]
 
     predicciones = predictor.predict_batch(filas)
@@ -140,6 +143,75 @@ def simular_escenario(
             }
             for n, p in zip(niveles_stock, escenarios)
         ],
+    }
+
+
+NIVELES = ["BAJO", "MEDIO", "ALTO"]
+
+
+def stock_minimo(
+    predictor: Predictor,
+    fecha: date | None,
+    codigo: str,
+    nivel_objetivo: str = "MEDIO",
+) -> dict[str, Any]:
+    """Menor stock con el que el producto queda en `nivel_objetivo` o mejor.
+
+    Antes el agente tanteaba con simular_escenario y leia mal el barrido (dijo
+    "200 unidades" cuando a 200 seguia en ALTO). Aqui se resuelve exacto: una
+    rejilla de enteros en una sola pasada vectorizada, y se exige que el nivel
+    se MANTENGA para todo stock mayor de la rejilla. El bosque no es monotono:
+    un valle aislado de probabilidad no cuenta como respuesta.
+    """
+    nivel_objetivo = str(nivel_objetivo).upper()
+    if nivel_objetivo not in ("BAJO", "MEDIO"):
+        return {"error": "nivel_objetivo debe ser 'MEDIO' (salir de ALTO) o 'BAJO'."}
+    actual = _producto(fecha, codigo)
+    if actual is None:
+        return {"error": f"No existe ningun producto con codigo '{codigo}'."}
+
+    # Tope: 10 veces el peor consumo sostenido durante el horizonte.
+    tope = int(max(1000, actual["consumo_maximo"] * config.HORIZONTE_DIAS * 10))
+    paso = max(1, tope // 3000)  # rejilla gruesa y luego enteros: 2 pasadas vectorizadas
+
+    def evaluar(stocks: list[int]) -> list[dict]:
+        return predictor.predict_batch([{**actual, "stock_actual": n} for n in stocks])
+
+    def primero_estable(preds: list[dict]) -> int | None:
+        """Indice desde el que TODOS los siguientes cumplen el objetivo."""
+        indice = None
+        for i in range(len(preds) - 1, -1, -1):
+            if NIVELES.index(preds[i]["nivel_riesgo"]) > NIVELES.index(nivel_objetivo):
+                break
+            indice = i
+        return indice
+
+    real = predictor.predict(actual)
+    rejilla = list(range(0, tope + 1, paso))
+    preds = evaluar(rejilla)
+    indice = primero_estable(preds)
+    if indice is None:
+        return {
+            "codigo": actual["codigo"],
+            "error": f"Ni con {tope} unidades el modelo lo baja a {nivel_objetivo}.",
+        }
+    if paso > 1 and indice > 0:
+        # Afinar entre el ultimo punto que no cumplia y el elegido
+        finos = list(range(rejilla[indice - 1] + 1, rejilla[indice] + 1))
+        preds_finos = evaluar(finos)
+        rejilla, preds, indice = finos, preds_finos, primero_estable(preds_finos)
+
+    minimo = rejilla[indice]
+    return {
+        "codigo": actual["codigo"],
+        "stock_real": actual["stock_actual"],
+        "probabilidad_real": real["probabilidad_agotamiento"],
+        "nivel_riesgo_real": real["nivel_riesgo"],
+        "nivel_objetivo": nivel_objetivo,
+        "stock_minimo": minimo,
+        "unidades_a_agregar": max(0, minimo - actual["stock_actual"]),
+        "probabilidad_en_minimo": preds[indice]["probabilidad_agotamiento"],
+        "nivel_en_minimo": preds[indice]["nivel_riesgo"],
     }
 
 
@@ -206,12 +278,9 @@ DEFINICIONES: list[dict] = [
             "description": (
                 "Recalcula la probabilidad de agotamiento de un producto para uno o "
                 "varios niveles de stock hipoteticos, en una sola llamada. Usala para "
-                "'¿que pasaria si compro N unidades de X?' y para '¿cuanto stock "
-                "necesita X para dejar de ser riesgo alto?'. Para buscar un umbral, "
-                "manda de una vez un rango amplio y creciente (por ejemplo 10, 30, 60, "
-                "120, 200): un solo barrido rinde mas que varias llamadas tanteando de "
-                "a un valor. Guiate por consumo_promedio y el horizonte del modelo "
-                "para elegir la escala."
+                "'¿que pasaria si compro N unidades de X?' o para comparar cantidades "
+                "concretas que proponga el usuario. Para buscar el stock que hace "
+                "falta, usa stock_minimo."
             ),
             "parameters": {
                 "type": "object",
@@ -226,6 +295,32 @@ DEFINICIONES: list[dict] = [
                     },
                 },
                 "required": ["codigo", "niveles_stock"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "stock_minimo",
+            "description": (
+                "Calcula EXACTAMENTE el menor stock con el que un producto deja de "
+                "ser riesgo alto (nivel_objetivo MEDIO) o llega a riesgo bajo "
+                "(nivel_objetivo BAJO). Usala SIEMPRE para '¿cuanto stock necesita X "
+                "para dejar de ser riesgo alto?' o '¿cuanto debo comprar de X?'; no "
+                "tantees con simular_escenario. Reporta stock_minimo y "
+                "unidades_a_agregar tal cual."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "codigo": {"type": "string", "description": "Codigo del producto."},
+                    "nivel_objetivo": {
+                        "type": "string",
+                        "enum": ["MEDIO", "BAJO"],
+                        "description": "MEDIO = salir de riesgo alto (por defecto).",
+                    },
+                },
+                "required": ["codigo"],
             },
         },
     },
@@ -248,6 +343,7 @@ DEFINICIONES: list[dict] = [
 _REGISTRO: dict[str, Callable[..., dict]] = {
     "consultar_producto": consultar_producto,
     "simular_escenario": simular_escenario,
+    "stock_minimo": stock_minimo,
     "comparar_politicas": comparar_politicas,
 }
 

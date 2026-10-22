@@ -45,6 +45,7 @@ NOMBRES_MODELO = {
     "bosque": "bosque aleatorio",
     "logistica": "regresión logística",
     "xgb": "XGBoost",
+    "mlp": "red neuronal",
 }
 
 
@@ -185,6 +186,14 @@ def simular_politica(
     }
 
 
+def modelos_entrenados() -> list[str]:
+    """El bosque (activo) y cada alternativa que ya tenga artefacto."""
+    return ["bosque"] + [
+        n for n in NOMBRES_MODELO
+        if n != "bosque" and (config.MODELS_DIR / f"stockout_{n}_v1.joblib").exists()
+    ]
+
+
 def cargar_modelos(nombres: list[str]) -> list[tuple[str, Predictor]]:
     """Carga un Predictor por algoritmo. El bosque usa las rutas de config."""
     modelos = []
@@ -266,7 +275,7 @@ def main() -> None:
         action="append",
         choices=list(NOMBRES_MODELO),
         default=None,
-        help="Algoritmos a comparar (repetible). Por defecto: bosque y logistica",
+        help="Algoritmos a comparar (repetible). Por defecto: todos los entrenados",
     )
     parser.add_argument(
         "--sin-red",
@@ -280,7 +289,7 @@ def main() -> None:
     resultado = comparar(
         args.db, args.dias, args.lead_time, args.semilla, umbrales,
         red_seguridad=not args.sin_red,
-        nombres_modelo=args.modelo or ["bosque", "logistica"],
+        nombres_modelo=args.modelo or modelos_entrenados(),
     )
 
     tabla = pd.DataFrame(

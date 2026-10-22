@@ -20,6 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -63,8 +66,8 @@ REGLAS IMPORTANTES:
    no esta en el resumen, un escenario hipotetico de stock, o las cifras de la
    comparacion de politicas. No las uses si el resumen ya basta.
 6. Los niveles de riesgo salen de la probabilidad: ALTO por encima de {alto:.0%},
-   MEDIO entre {medio:.0%} y {alto:.0%}, BAJO por debajo de {medio:.0%}. Usalos para
-   saber a que cifra apuntar cuando busques cuanto stock hace falta.
+   MEDIO entre {medio:.0%} y {alto:.0%}, BAJO por debajo de {medio:.0%}. Para
+   "cuanto stock hace falta" usa la herramienta stock_minimo y reporta su cifra.
 7. Se breve y concreto. Usa listas cortas. Responde en espanol.""".format(
     alto=config.UMBRAL_RIESGO_ALTO, medio=config.UMBRAL_RIESGO_MEDIO
 )
@@ -80,21 +83,39 @@ def _pedir(cliente: httpx.Client, mensajes: list[dict]) -> dict:
     por mensaje, no quitandole las herramientas.
     """
     cuerpo: dict = {
-        "model": config.LLM_MODEL,
         "max_tokens": config.LLM_MAX_TOKENS,
         "messages": mensajes,
         "tools": herramientas.DEFINICIONES,
         "tool_choice": "auto",
     }
 
+    modelos = list(dict.fromkeys([config.LLM_MODEL, *config.LLM_MODELOS_RESPALDO]))
+    # Los 503 de Gemini duran segundos: si toda la lista falla, una segunda
+    # pasada tras una pausa corta suele entrar.
+    intentos = modelos * 2
     try:
-        respuesta = cliente.post(
-            f"{config.LLM_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
-            json=cuerpo,
-        )
-        respuesta.raise_for_status()
-        return respuesta.json()
+        for n, modelo in enumerate(intentos):
+            if n == len(modelos):
+                time.sleep(2)
+            ultimo = n == len(intentos) - 1
+            try:
+                respuesta = cliente.post(
+                    f"{config.LLM_BASE_URL}/chat/completions",
+                    headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
+                    json={**cuerpo, "model": modelo},
+                )
+            except httpx.TimeoutException:
+                if ultimo:
+                    raise
+                logger.warning("LLM %s no respondio a tiempo; pruebo el siguiente", modelo)
+                continue
+            # 503 = saturado; 429 = cuota agotada (el free tier de Gemini Flash
+            # da 20 peticiones al dia y cada pregunta gasta varias vueltas).
+            if respuesta.status_code in (429, 503) and not ultimo:
+                logger.warning("LLM %s no disponible (%s); pruebo el siguiente", modelo, respuesta.status_code)
+                continue
+            respuesta.raise_for_status()
+            return respuesta.json()
     except httpx.HTTPStatusError as exc:
         # El cuerpo del error puede traer detalles de la cuenta: solo al log.
         logger.error(
@@ -259,3 +280,55 @@ def preguntar(
         tokens_entrada=tokens_entrada or None,
         tokens_salida=tokens_salida or None,
     )
+
+
+# ---------------------------------------------------------------
+# Preguntas en segundo plano
+# ---------------------------------------------------------------
+# Una pregunta tarda de segundos a mas de un minuto (varias vueltas al LLM).
+# Con una sola peticion abierta, cambiar de pagina la cancelaba y el chat
+# guardaba "Failed to fetch". Asi el navegador solo pregunta "¿ya?" cada pocos
+# segundos y puede retomar la espera desde otra pagina con el id.
+# ponytail: en memoria del proceso; se pierden al reiniciar y no escala a
+# varios workers. Pasar a una tabla si algun dia hay mas de un proceso.
+_ejecutor = ThreadPoolExecutor(max_workers=4)
+_tareas: dict[str, Future] = {}
+MAX_TAREAS = 200
+
+
+@router.post(
+    "/tareas",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Encola una pregunta y devuelve su id",
+    description="Igual que POST /asistente, pero sin esperar: consulta el resultado en GET /tareas/{id}.",
+)
+def encolar(
+    peticion: AsistenteRequest,
+    predictor: Predictor = Depends(get_predictor),
+) -> dict:
+    # Se descartan las terminadas mas viejas: el dict conserva el orden de llegada
+    for viejo in [k for k, f in _tareas.items() if f.done()][: max(0, len(_tareas) - MAX_TAREAS + 1)]:
+        del _tareas[viejo]
+    id_tarea = uuid.uuid4().hex
+    _tareas[id_tarea] = _ejecutor.submit(preguntar, peticion, predictor)
+    return {"id": id_tarea}
+
+
+@router.get(
+    "/tareas/{id_tarea}",
+    summary="Estado de una pregunta encolada",
+    responses={404: {"model": ErrorResponse, "description": "Id desconocido o API reiniciada"}},
+)
+def consultar(id_tarea: str) -> dict:
+    futuro = _tareas.get(id_tarea)
+    if futuro is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pregunta desconocida.")
+    if not futuro.done():
+        return {"estado": "EN_CURSO"}
+    error = futuro.exception()
+    if error is None:
+        return {"estado": "OK", "resultado": futuro.result().model_dump(mode="json")}
+    detalle = error.detail if isinstance(error, HTTPException) else "Error interno del asistente."
+    if not isinstance(error, HTTPException):
+        logger.error("Fallo una pregunta encolada", exc_info=error)
+    return {"estado": "ERROR", "detalle": detalle}

@@ -76,6 +76,8 @@ def client(db, tmp_path, monkeypatch):
     import inventory_ml.resumen as mod_resumen
 
     monkeypatch.setattr(mod_resumen.config, "DB_PATH", db)
+    # Sin esto los tests dependian de tener una clave real en el .env
+    monkeypatch.setattr(config, "LLM_API_KEY", "clave-de-prueba")
     with TestClient(app) as c:
         yield c
 
@@ -133,6 +135,7 @@ def _simular_llm(monkeypatch, respuesta=None, status_code=200):
         Client = ClienteFalso
         HTTPStatusError = httpx.HTTPStatusError
         HTTPError = httpx.HTTPError
+        TimeoutException = httpx.TimeoutException
         Request = httpx.Request
 
     monkeypatch.setattr("inventory_ml.api.asistente.httpx", HttpxFalso)
@@ -353,3 +356,86 @@ def test_el_bucle_termina_aunque_el_modelo_insista(client, monkeypatch):
     # El guion nunca entrega texto, asi que el endpoint lo reporta como 503
     # en vez de devolver una respuesta vacia.
     assert r.status_code == 503
+
+
+def test_modelo_saturado_reintenta_con_el_de_respaldo(monkeypatch):
+    from inventory_ml.api import asistente
+
+    monkeypatch.setattr(config, "LLM_MODEL", "principal")
+    monkeypatch.setattr(config, "LLM_MODELOS_RESPALDO", ["agotado", "respaldo"])
+    pedidos = []
+
+    class Respuesta:
+        def __init__(self, codigo):
+            self.status_code = codigo
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"ok": True}
+
+    class Cliente:
+        def post(self, url, headers=None, json=None):
+            pedidos.append(json["model"])
+            return Respuesta(codigo if json["model"] != "respaldo" else 200)
+
+    for codigo in (503, 429):  # saturado y cuota agotada
+        pedidos.clear()
+        assert asistente._pedir(Cliente(), []) == {"ok": True}
+        assert pedidos == ["principal", "agotado", "respaldo"]
+
+
+def test_stock_minimo_es_el_primer_stock_que_sale_de_alto(client):
+    """El agente leia mal los barridos: esta herramienta da la cifra exacta."""
+    from inventory_ml import herramientas
+
+    class CurvaConocida:
+        """probabilidad = 1 - stock/100: ALTO (>0.70) hasta 29, MEDIO desde 30."""
+
+        def predict_batch(self, filas):
+            return [self.predict(f) for f in filas]
+
+        def predict(self, fila):
+            p = max(0.0, 1 - fila["stock_actual"] / 100)
+            return {"probabilidad_agotamiento": p, "nivel_riesgo": config.nivel_riesgo(p)}
+
+    r = herramientas.stock_minimo(CurvaConocida(), None, "P0")
+    assert r["stock_minimo"] == 30
+    assert r["unidades_a_agregar"] == 30  # P0 esta en stock 0
+    assert r["nivel_riesgo_real"] == "ALTO"
+    assert herramientas.stock_minimo(CurvaConocida(), None, "P0", "BAJO")["stock_minimo"] == 61
+
+
+def _esperar(client, id_tarea):
+    import time
+
+    for _ in range(100):
+        r = client.get(f"/api/v1/asistente/tareas/{id_tarea}")
+        if r.json()["estado"] != "EN_CURSO":
+            return r.json()
+        time.sleep(0.05)
+    raise AssertionError("la tarea no termino")
+
+
+def test_pregunta_en_segundo_plano(client, monkeypatch):
+    """Cambiar de pagina ya no pierde la respuesta: se consulta por id."""
+    monkeypatch.setattr(config, "LLM_API_KEY", "clave-de-prueba")
+    _simular_llm(monkeypatch)
+    r = client.post("/api/v1/asistente/tareas", json={"pregunta": "¿Que priorizo?"})
+    assert r.status_code == 202
+    final = _esperar(client, r.json()["id"])
+    assert final["estado"] == "OK"
+    assert final["resultado"]["respuesta"]
+
+
+def test_pregunta_en_segundo_plano_reporta_el_error(client, monkeypatch):
+    monkeypatch.setattr(config, "LLM_API_KEY", "")
+    r = client.post("/api/v1/asistente/tareas", json={"pregunta": "¿Que priorizo?"})
+    final = _esperar(client, r.json()["id"])
+    assert final["estado"] == "ERROR"
+    assert "LLM_API_KEY" in final["detalle"]
+
+
+def test_tarea_desconocida_es_404(client):
+    assert client.get("/api/v1/asistente/tareas/nope").status_code == 404

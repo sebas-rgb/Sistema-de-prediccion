@@ -20,6 +20,10 @@ class InventarioNoDisponibleError(RuntimeError):
     """La base de datos del inventario no existe o no se puede leer."""
 
 
+class SedeDesconocidaError(LookupError):
+    """La sede pedida no tiene perfiles."""
+
+
 COLUMNAS_PRODUCTO = [c for c in COLUMNAS_NUMERICAS if c != "stock_actual"]
 
 
@@ -92,3 +96,65 @@ def estado_en_fecha(
         ).fetchall()
 
     return fecha, total, [dict(f) for f in filas]
+
+
+# ---------------------------------------------------------------
+# Por sede: perfiles reales (ingestion/sedes.py), no la simulacion
+# ---------------------------------------------------------------
+
+
+def listar_sedes(db_path: Path) -> tuple[date, list[str]]:
+    """Fecha del ultimo snapshot real y sedes con productos perfilados."""
+    with _conectar(db_path) as conn:
+        filas = conn.execute(
+            "SELECT sede, MAX(fecha) AS f FROM perfil_sede GROUP BY sede ORDER BY sede"
+        ).fetchall()
+    if not filas:
+        raise InventarioNoDisponibleError("No hay perfiles por sede.")
+    return date.fromisoformat(filas[0]["f"]), [f["sede"] for f in filas]
+
+
+def estado_sede(
+    db_path: Path,
+    sede: str,
+    codigo: str | None = None,
+    limite: int = 50,
+    desplazamiento: int = 0,
+) -> tuple[date, int, list[dict]]:
+    """Ultimo stock real de cada producto en una sede, con su perfil EN esa sede.
+
+    Misma forma que `estado_en_fecha`: el Predictor y la interfaz no distinguen
+    si el registro viene de la simulacion o de una sede.
+    """
+    columnas = ", ".join(COLUMNAS_PRODUCTO)
+    filtro = "WHERE sede = ?"
+    params: list = [sede]
+    if codigo:
+        filtro += " AND codigo LIKE ?"
+        params.append(f"%{codigo}%")
+
+    with _conectar(db_path) as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS n FROM perfil_sede {filtro}", params
+        ).fetchone()["n"]
+        filas = conn.execute(
+            f"""
+            SELECT codigo, fecha, stock_actual, {COLUMNA_CATEGORICA}, {columnas}
+            FROM perfil_sede
+            {filtro}
+            ORDER BY codigo
+            LIMIT ? OFFSET ?
+            """,
+            [*params, limite, desplazamiento],
+        ).fetchall()
+        if not total:
+            existe = conn.execute(
+                "SELECT 1 FROM perfil_sede WHERE sede = ? LIMIT 1", [sede]
+            ).fetchone()
+            if existe is None:
+                raise SedeDesconocidaError(sede)
+        fecha = conn.execute(
+            "SELECT MAX(fecha) AS f FROM perfil_sede WHERE sede = ?", [sede]
+        ).fetchone()["f"]
+
+    return date.fromisoformat(fecha), total, [dict(f) for f in filas]

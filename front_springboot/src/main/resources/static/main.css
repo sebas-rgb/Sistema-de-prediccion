@@ -1032,6 +1032,10 @@ a, button, input, select, textarea {
   height: 3.5rem;
 }
 
+.h-2\.5{
+  height: 0.625rem;
+}
+
 .h-24{
   height: 6rem;
 }
@@ -1040,12 +1044,12 @@ a, button, input, select, textarea {
   height: 12rem;
 }
 
-.h-9{
-  height: 2.25rem;
+.h-80{
+  height: 20rem;
 }
 
-.h-96{
-  height: 24rem;
+.h-9{
+  height: 2.25rem;
 }
 
 .max-h-72{
@@ -1056,6 +1060,10 @@ a, button, input, select, textarea {
   min-height: 100vh;
 }
 
+.w-2\.5{
+  width: 0.625rem;
+}
+
 .w-28{
   width: 7rem;
 }
@@ -1064,12 +1072,20 @@ a, button, input, select, textarea {
   width: 100%;
 }
 
+.min-w-0{
+  min-width: 0px;
+}
+
 .min-w-\[2\.5rem\]{
   min-width: 2.5rem;
 }
 
 .min-w-\[640px\]{
   min-width: 640px;
+}
+
+.min-w-\[720px\]{
+  min-width: 720px;
 }
 
 .max-w-2xl{
@@ -1110,6 +1126,10 @@ a, button, input, select, textarea {
 
 .flex-shrink{
   flex-shrink: 1;
+}
+
+.shrink-0{
+  flex-shrink: 0;
 }
 
 .flex-grow{
@@ -1166,6 +1186,10 @@ a, button, input, select, textarea {
 
 .items-center{
   align-items: center;
+}
+
+.items-baseline{
+  align-items: baseline;
 }
 
 .justify-start{
@@ -1362,10 +1386,6 @@ a, button, input, select, textarea {
   border-left-width: 1px;
 }
 
-.border-l-4{
-  border-left-width: 4px;
-}
-
 .border-t{
   border-top-width: 1px;
 }
@@ -1499,6 +1519,10 @@ a, button, input, select, textarea {
      object-fit: cover;
 }
 
+.p-0\.5{
+  padding: 0.125rem;
+}
+
 .p-3{
   padding: 0.75rem;
 }
@@ -1601,10 +1625,6 @@ a, button, input, select, textarea {
 
 .pb-4{
   padding-bottom: 1rem;
-}
-
-.pl-3{
-  padding-left: 0.75rem;
 }
 
 .pl-5{
@@ -1854,6 +1874,12 @@ a, button, input, select, textarea {
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
+.ring-2{
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
 .ring-inset{
   --tw-ring-inset: inset;
 }
@@ -1861,6 +1887,11 @@ a, button, input, select, textarea {
 .ring-amber-200{
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(253 230 138 / var(--tw-ring-opacity, 1));
+}
+
+.ring-brand{
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(0 100 175 / var(--tw-ring-opacity, 1));
 }
 
 .ring-brand-100{
@@ -1890,6 +1921,10 @@ a, button, input, select, textarea {
 
 .invert{
   --tw-invert: invert(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.filter{
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
@@ -2252,6 +2287,16 @@ a, button, input, select, textarea {
   outline-color: #fff;
 }
 
+.aria-pressed\:bg-brand[aria-pressed="true"]{
+  --tw-bg-opacity: 1;
+  background-color: rgb(0 100 175 / var(--tw-bg-opacity, 1));
+}
+
+.aria-pressed\:text-white[aria-pressed="true"]{
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
 .aria-\[current\=page\]\:bg-white\/15[aria-current="page"]{
   background-color: rgb(255 255 255 / 0.15);
 }
@@ -2276,6 +2321,10 @@ a, button, input, select, textarea {
 
   .sm\:flex-row{
     flex-direction: row;
+  }
+
+  .sm\:items-start{
+    align-items: flex-start;
   }
 
   .sm\:items-end{
@@ -2392,6 +2441,10 @@ a, button, input, select, textarea {
     grid-column: span 2 / span 2;
   }
 
+  .lg\:col-span-3{
+    grid-column: span 3 / span 3;
+  }
+
   .lg\:mx-0{
     margin-left: 0px;
     margin-right: 0px;
@@ -2413,6 +2466,10 @@ a, button, input, select, textarea {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .lg\:grid-cols-5{
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .lg\:flex-row{
     flex-direction: row;
   }
@@ -2431,5 +2488,11 @@ a, button, input, select, textarea {
 
   .lg\:justify-between{
     justify-content: space-between;
+  }
+}
+
+@media (min-width: 1280px){
+  .xl\:grid-cols-5{
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }

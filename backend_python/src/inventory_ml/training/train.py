@@ -35,6 +35,7 @@ from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
 )
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
@@ -61,7 +62,7 @@ ESTADO_VALIDACION = "NO_VALIDADO_CON_DATOS_REALES"
 # "rf" es el modelo de produccion y conserva las rutas de config. "logistica"
 # se guarda aparte: sirve de linea base interpretable en el experimento y no
 # debe pisar el artefacto que sirve la API.
-ALGORITMOS = ("rf", "logistica", "xgb")
+ALGORITMOS = ("rf", "logistica", "xgb", "mlp")
 
 
 def rutas_artefacto(algoritmo: str) -> tuple[Path, Path]:
@@ -139,6 +140,27 @@ def construir_pipeline(
             verbosity=0,
         )
         return Pipeline([("preproceso", preprocesador), ("modelo", modelo)])
+
+    if algoritmo == "mlp":
+        # Red neuronal (perceptron multicapa). Igual que la logistica necesita
+        # escalado. Sin class_weight: MLPClassifier no lo soporta.
+        # early_stopping aparta un 10% aleatorio del train solo para decidir
+        # cuando parar; la evaluacion sigue siendo el holdout temporal.
+        return Pipeline(
+            [
+                ("preproceso", preprocesador),
+                ("escalado", StandardScaler()),
+                (
+                    "modelo",
+                    MLPClassifier(
+                        hidden_layer_sizes=(64, 32),
+                        early_stopping=True,
+                        max_iter=200,
+                        random_state=SEMILLA,
+                    ),
+                ),
+            ]
+        )
 
     if algoritmo == "logistica":
         # Escalar es obligatorio aqui y no en el bosque: stock_actual llega a

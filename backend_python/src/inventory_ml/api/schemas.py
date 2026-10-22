@@ -144,6 +144,11 @@ class InventarioResponse(BaseModel):
     items: list[InventarioItem]
 
 
+class SedesResponse(BaseModel):
+    fecha: date = Field(..., description="Ultimo snapshot real usado para las sedes")
+    sedes: list[str]
+
+
 # ---------------------------------------------------------------
 # Comparacion de politicas de reposicion
 # ---------------------------------------------------------------

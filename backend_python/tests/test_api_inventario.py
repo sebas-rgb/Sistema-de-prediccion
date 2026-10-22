@@ -48,7 +48,29 @@ def db(tmp_path):
 
 
 @pytest.fixture
-def client(db, tmp_path, monkeypatch):
+def sedes_db(tmp_path):
+    ruta = tmp_path / "sedes.db"
+    perfiles = pd.DataFrame(
+        {
+            "sede": ["Centro", "Centro", "Cali"],
+            "codigo": ["P0", "P1", "P0"],
+            "clase": ["Alta", "Baja", "Media"],
+            "stock_actual": [3, 400, 20],
+            "consumo_promedio": [10, 0.5, 2],
+            "consumo_minimo": [1, 0, 1],
+            "consumo_maximo": [30, 2, 5],
+            "reposicion_promedio": [50, 5, 20],
+            "frecuencia_movimiento": [0.5, 0.02, 0.1],
+            "fecha": "2026-05-08",
+        }
+    )
+    with sqlite3.connect(ruta) as conn:
+        perfiles.to_sql("perfil_sede", conn, index=False)
+    return ruta
+
+
+@pytest.fixture
+def client(db, sedes_db, tmp_path, monkeypatch):
     df = pd.DataFrame(
         {
             "stock_actual": [0, 5, 200, 300, 1, 150],
@@ -70,6 +92,7 @@ def client(db, tmp_path, monkeypatch):
     import inventory_ml.api.inventario as mod
 
     monkeypatch.setattr(mod.config, "DB_PATH", db)
+    monkeypatch.setattr(mod.config, "SEDES_DB_PATH", sedes_db)
     with TestClient(app) as c:
         yield c
 
@@ -136,3 +159,25 @@ def test_parametros_invalidos(client):
     assert client.get("/api/v1/inventario?pagina=0").status_code == 422
     assert client.get("/api/v1/inventario?tamano_pagina=999").status_code == 422
     assert client.get("/api/v1/inventario?fecha=ayer").status_code == 422
+
+
+def test_lista_sedes(client):
+    assert client.get("/api/v1/inventario/sedes").json() == {
+        "fecha": "2026-05-08",
+        "sedes": ["Cali", "Centro"],
+    }
+
+
+def test_por_sede_usa_stock_y_perfil_de_la_sede(client):
+    body = client.get("/api/v1/inventario?sede=Centro").json()
+    assert body["fecha"] == "2026-05-08"
+    assert body["total"] == 2
+    stocks = {i["codigo"]: i["stock_actual"] for i in body["items"]}
+    assert stocks == {"P0": 3, "P1": 400}
+    # mismo producto, otra sede: otro stock y otra clase
+    cali = client.get("/api/v1/inventario?sede=Cali").json()["items"]
+    assert [(i["codigo"], i["stock_actual"], i["clase"]) for i in cali] == [("P0", 20, "Media")]
+
+
+def test_sede_desconocida_es_404(client):
+    assert client.get("/api/v1/inventario?sede=Marte").status_code == 404

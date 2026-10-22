@@ -5,28 +5,78 @@
 
 <header th:replace="~{fragments/layout :: barra('analisis')}"></header>
 
-<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-    <h1 class="text-2xl font-bold text-slate-900">¿Sirve anticiparse?</h1>
-    <p class="mt-1 mb-6 max-w-3xl text-sm text-slate-600">
-        La misma demanda simulada bajo varias políticas de compra: pedir solo cuando el stock llega
-        a cero, o pedir además cuando un modelo anticipa el agotamiento. La línea continua es el
-        <strong>stock disponible</strong> cada día y la punteada, <strong>lo que se alcanzó a vender</strong>.
-        Para recalcularla con los modelos actuales, ve a <a href="/modelos" class="link">Modelos</a>.
-    </p>
-
-    <div class="card p-4 sm:p-6">
-        <p id="avisoComparacion" role="alert"
-           class="mb-4 hidden rounded-lg bg-amber-50 p-3 text-sm text-amber-900"></p>
-
-        <div id="resumenComparacion" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
-
-        <div class="relative h-96">
-            <canvas id="graficoComparacion" role="img"
-                    aria-label="Stock disponible y unidades vendidas por día para cada política de compra"></canvas>
-        </div>
-
-        <p id="pieComparacion" class="mt-4 text-center text-xs text-slate-500"></p>
+<main id="contenido" class="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">¿Sirve anticiparse?</h1>
+        <p class="mt-1 max-w-3xl text-sm text-slate-600">
+            La misma demanda simulada bajo varias políticas de compra: pedir solo cuando el stock llega
+            a cero, o pedir además cuando un modelo anticipa el agotamiento. Para recalcularla con los
+            modelos actuales, ve a <a href="/modelos" class="link">Modelos</a>.
+        </p>
+        <p id="pieComparacion" class="mt-1 text-xs text-slate-500"></p>
     </div>
+
+    <p id="avisoComparacion" role="alert"
+       class="hidden rounded-lg bg-amber-50 p-3 text-sm text-amber-900"></p>
+
+    <!-- Una tarjeta por politica: la metrica que decide es la demanda atendida -->
+    <section aria-label="Resumen por política">
+        <div id="resumenComparacion" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"></div>
+    </section>
+
+    <div class="grid gap-6 lg:grid-cols-5">
+        <section aria-labelledby="tituloEvolucion" class="card min-w-0 p-4 sm:p-6 lg:col-span-3">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 id="tituloEvolucion" class="text-lg font-semibold text-slate-900">Evolución diaria</h2>
+                    <p id="notaEvolucion" class="text-sm text-slate-600"></p>
+                </div>
+                <div role="group" aria-label="Métrica del gráfico" id="selectorSerie"
+                     class="inline-flex shrink-0 rounded-lg border border-slate-300 p-0.5 text-sm">
+                    <button type="button" data-serie="serieAgotados" aria-pressed="true"
+                            class="rounded-md px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 aria-pressed:bg-brand aria-pressed:text-white">Agotados</button>
+                    <button type="button" data-serie="serieVendido" aria-pressed="false"
+                            class="rounded-md px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 aria-pressed:bg-brand aria-pressed:text-white">Vendido</button>
+                    <button type="button" data-serie="serieStock" aria-pressed="false"
+                            class="rounded-md px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 aria-pressed:bg-brand aria-pressed:text-white">Stock</button>
+                </div>
+            </div>
+            <div class="relative h-80">
+                <canvas id="graficoEvolucion" role="img"
+                        aria-label="Evolución diaria por política de compra; los valores exactos están en la tabla"></canvas>
+            </div>
+        </section>
+
+        <section aria-labelledby="tituloBalance" class="card min-w-0 p-4 sm:p-6 lg:col-span-2">
+            <h2 id="tituloBalance" class="text-lg font-semibold text-slate-900">Servicio vs. inventario</h2>
+            <p class="text-sm text-slate-600">Arriba es mejor servicio; a la derecha, más stock inmovilizado.</p>
+            <div class="relative mt-4 h-80">
+                <canvas id="graficoBalance" role="img"
+                        aria-label="Demanda atendida frente a stock promedio por política; los valores exactos están en la tabla"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <section aria-labelledby="tituloTabla" class="card p-4 sm:p-6">
+        <h2 id="tituloTabla" class="mb-4 text-lg font-semibold text-slate-900">Detalle</h2>
+        <div class="-mx-4 overflow-x-auto sm:mx-0">
+            <table class="w-full min-w-[720px] whitespace-nowrap text-sm">
+                <caption class="sr-only">Métricas de cada política sobre la misma demanda</caption>
+                <thead class="border-b border-slate-200 text-left text-slate-600">
+                    <tr>
+                        <th scope="col" class="px-4 py-2 font-medium">Política</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Demanda atendida</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Unidades no servidas</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium" title="Solo productos con demanda">Días-producto sin stock</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Pedidos</th>
+                        <th scope="col" class="px-4 py-2 text-right font-medium">Stock promedio</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaComparacion"></tbody>
+            </table>
+        </div>
+        <p class="mt-3 text-xs text-slate-500">En negrita, el mejor valor de servicio. Pedidos y stock son el costo de conseguirlo.</p>
+    </section>
 </main>
 
 <footer th:replace="~{fragments/layout :: pie}"></footer>
